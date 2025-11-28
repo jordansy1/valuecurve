@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Value Curve Visualization</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .main-wrapper {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .container {
+            flex: 1;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .sidebar {
+            width: 280px;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .sidebar h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            font-size: 1.1em;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        .sidebar-section {
+            margin-bottom: 25px;
+        }
+
+        .competitor-list {
+            max-height: 250px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+
+        .competitor-checkbox {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            margin-bottom: 6px;
+            border-radius: 6px;
+            transition: background 0.2s ease;
+        }
+
+        .competitor-checkbox:hover {
+            background: #f8f9fa;
+        }
+
+        .competitor-checkbox input[type="checkbox"] {
+            margin-right: 10px;
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+        }
+
+        .competitor-checkbox label {
+            cursor: pointer;
+            flex: 1;
+            font-size: 0.9em;
+        }
+
+        .highlight-options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .highlight-btn {
+            padding: 12px 16px;
+            background: #ecf0f1;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.95em;
+            text-align: left;
+        }
+
+        .highlight-btn:hover {
+            background: #d5dbdd;
+        }
+
+        .highlight-btn.active {
+            background: #3498db;
+            color: white;
+            border-color: #2980b9;
+        }
+
+        .highlight-btn.advantage.active {
+            background: #27ae60;
+            border-color: #229954;
+        }
+
+        .highlight-btn.disadvantage.active {
+            background: #e74c3c;
+            border-color: #c0392b;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            margin-top: 0;
+        }
+
+        .user-persona {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 0.95em;
+            font-style: italic;
+            margin-bottom: 25px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 50vh;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .job-descriptions {
+            display: flex;
+            justify-content: space-around;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .job-box {
+            flex: 1;
+            min-width: 120px;
+            max-width: 160px;
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .job-box-title {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 0.85em;
+            margin-bottom: 6px;
+        }
+
+        .job-box-desc {
+            font-size: 0.75em;
+            color: #7f8c8d;
+            line-height: 1.3;
+        }
+
+        footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+
+        .select-all-btn {
+            padding: 6px 12px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+            margin-right: 8px;
+            transition: background 0.2s ease;
+        }
+
+        .select-all-btn:hover {
+            background: #2980b9;
+        }
+
+        .clear-all-btn {
+            padding: 6px 12px;
+            background: #95a5a6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: background 0.2s ease;
+        }
+
+        .clear-all-btn:hover {
+            background: #7f8c8d;
+        }
+
+        .button-group {
+            margin-bottom: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="main-wrapper">
+        <div class="container">
+            <h1 id="chart-title">Value Curves</h1>
+            <div class="user-persona" id="user-persona"></div>
+            <div class="chart-container">
+                <canvas id="valueCurveChart"></canvas>
+            </div>
+            <div class="job-descriptions" id="job-descriptions">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="sidebar-section">
+                <h3>Competitors</h3>
+                <div class="button-group">
+                    <button class="select-all-btn" onclick="selectAllCompetitors()">Select All</button>
+                    <button class="clear-all-btn" onclick="clearAllCompetitors()">Clear All</button>
+                </div>
+                <div class="competitor-list" id="competitor-list">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Scope</h3>
+                <div class="highlight-options">
+                    <button class="highlight-btn" id="btn-none" onclick="setHighlightMode('none')">
+                        No Highlighting
+                    </button>
+                    <button class="highlight-btn advantage" id="btn-advantage" onclick="setHighlightMode('advantage')">
+                        Areas of Advantage
+                    </button>
+                    <button class="highlight-btn disadvantage" id="btn-disadvantage"
+                        onclick="setHighlightMode('disadvantage')">
+                        Areas of Disadvantage
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>Generated by Value Curve App</p>
+    </footer>
+    <script src="/static/js/main.js"></script>
+</body>
+
+</html>

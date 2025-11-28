@@ -1,0 +1,65 @@
+{
+    "industry": "Security Operations Center (SOC) Tools",
+    "user_persona": "Detection Engineer at a mid-sized commercial bank",
+    "user_jobs": [
+        {
+            "name": "Triage Alerts",
+            "description": "Quickly assess and prioritize incoming security alerts"
+        },
+        {
+            "name": "Investigate Threats",
+            "description": "Deep-dive into suspicious activity to determine impact"
+        },
+        {
+            "name": "Tune Detections",
+            "description": "Optimize rules to reduce false positives"
+        },
+        {
+            "name": "Collaborate on IR",
+            "description": "Work with incident response team during active threats"
+        },
+        {
+            "name": "Report Findings",
+            "description": "Document and communicate security incidents to stakeholders"
+        },
+        {
+            "name": "Stay Current",
+            "description": "Keep up with emerging threats and attack techniques"
+        }
+    ],
+    "curves": [
+        {
+            "customer_profile": "Legacy SIEM",
+            "relative_customer_value": [
+                -2,
+                1,
+                -3,
+                -1,
+                0,
+                -2
+            ]
+        },
+        {
+            "customer_profile": "Open Source Stack",
+            "relative_customer_value": [
+                3,
+                -2,
+                2,
+                -3,
+                -2,
+                1
+            ]
+        },
+        {
+            "customer_profile": "Our Solution",
+            "relative_customer_value": [
+                1,
+                4,
+                3,
+                2,
+                -3,
+                3
+            ]
+        }
+    ]
+}
