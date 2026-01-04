@@ -50,4 +50,4 @@ if __name__ == '__main__':
     else:
         print(f"Starting Value Curve App with data from: {data_file}")
     
-    app.run(debug=True, port=5000)
+    app.run(debug=False, port=5000, host='0.0.0.0')
