@@ -1,2 +1,4 @@
-flask
-pandas
+# Web Framework
+# Flask 3.1.x - Latest stable version with security updates
+# Using ~= allows patch updates (3.1.x) but prevents breaking changes
+Flask~=3.1.2
