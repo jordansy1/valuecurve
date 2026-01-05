@@ -36,10 +36,16 @@ def index():
 @app.route('/api/data')
 def get_data():
     data_file = get_data_file()
-    
+
     try:
         with open(data_file, 'r') as f:
             data = json.load(f)
+
+        # Transform data for frontend compatibility
+        # Convert user_jobs (objects with name/description) to features (array of strings)
+        if 'user_jobs' in data and 'features' not in data:
+            data['features'] = [job['name'] for job in data['user_jobs']]
+
         return jsonify(data)
     except FileNotFoundError:
         return jsonify({"error": f"Data file not found: {data_file}"}), 404
