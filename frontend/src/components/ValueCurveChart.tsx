@@ -59,9 +59,11 @@ const ValueCurveChart: React.FC<ValueCurveChartProps> = ({
   const highlightAreas = useMemo(() => {
     if (highlightMode === 'none' || !ourSolution) return [];
 
-    const areas: Array<{ start: number; end: number; type: 'advantage' | 'disadvantage' }> = [];
+    const areas: Array<{ startFeature: string; endFeature: string; type: 'advantage' | 'disadvantage' }> = [];
     const threshold = 1.0;
 
+    // Find indices that qualify for highlighting
+    const qualifyingIndices: number[] = [];
     data.features.forEach((_, index) => {
       const ourValue = ourSolution.relative_customer_value[index];
       const competitorValues = data.curves
@@ -75,13 +77,40 @@ const ValueCurveChart: React.FC<ValueCurveChartProps> = ({
         (highlightMode === 'advantage' && difference >= threshold) ||
         (highlightMode === 'disadvantage' && difference <= -threshold)
       ) {
-        areas.push({
-          start: index,
-          end: index + 1,
-          type: difference >= threshold ? 'advantage' : 'disadvantage',
-        });
+        qualifyingIndices.push(index);
       }
     });
+
+    // Group consecutive indices into ranges
+    if (qualifyingIndices.length > 0) {
+      let rangeStart = qualifyingIndices[0];
+      let rangeEnd = qualifyingIndices[0];
+
+      for (let i = 1; i <= qualifyingIndices.length; i++) {
+        if (i < qualifyingIndices.length && qualifyingIndices[i] === rangeEnd + 1) {
+          // Extend the current range
+          rangeEnd = qualifyingIndices[i];
+        } else {
+          // End current range and create area
+          // For ReferenceArea to work with categorical axis, we use feature names
+          // and extend slightly before/after to make single points visible
+          const startIdx = Math.max(0, rangeStart);
+          const endIdx = Math.min(data.features.length - 1, rangeEnd);
+
+          areas.push({
+            startFeature: data.features[startIdx],
+            endFeature: data.features[endIdx],
+            type: highlightMode === 'advantage' ? 'advantage' : 'disadvantage',
+          });
+
+          // Start new range if there are more indices
+          if (i < qualifyingIndices.length) {
+            rangeStart = qualifyingIndices[i];
+            rangeEnd = qualifyingIndices[i];
+          }
+        }
+      }
+    }
 
     return areas;
   }, [data, ourSolution, highlightMode]);
@@ -134,10 +163,14 @@ const ValueCurveChart: React.FC<ValueCurveChartProps> = ({
           {highlightAreas.map((area, idx) => (
             <ReferenceArea
               key={idx}
-              x1={chartData[area.start]?.feature}
-              x2={chartData[area.end - 1]?.feature}
+              x1={area.startFeature}
+              x2={area.endFeature}
+              y1={-5}
+              y2={5}
               fill={area.type === 'advantage' ? '#27ae60' : '#e74c3c'}
-              fillOpacity={0.1}
+              fillOpacity={0.2}
+              stroke={area.type === 'advantage' ? '#27ae60' : '#e74c3c'}
+              strokeOpacity={0.3}
             />
           ))}
 

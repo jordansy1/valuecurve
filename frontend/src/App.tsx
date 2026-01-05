@@ -146,6 +146,26 @@ function App() {
               onHighlightModeChange={setHighlightMode}
             />
           </div>
+
+          {/* User Jobs Descriptions */}
+          {data.user_jobs && data.user_jobs.length > 0 && (
+            <div className="mt-8 card">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 pb-3 border-b border-gray-200">
+                Key User Jobs
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {data.user_jobs.map((job, index) => (
+                  <div
+                    key={index}
+                    className="p-4 bg-gray-50 rounded-lg border border-gray-100"
+                  >
+                    <h4 className="font-medium text-gray-800 mb-2">{job.name}</h4>
+                    <p className="text-sm text-gray-600">{job.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
