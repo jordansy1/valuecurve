@@ -1,8 +1,12 @@
 import json
 import os
-from flask import Flask, render_template, jsonify
+from flask import Flask, jsonify
+from flask_cors import CORS
 
 app = Flask(__name__)
+
+# Enable CORS for development (React dev server on different port)
+CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:3000"]}})
 
 # Config file to persist data file path
 CONFIG_FILE = 'app_config.json'
@@ -20,7 +24,14 @@ def get_data_file():
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    """Root endpoint - API information"""
+    return jsonify({
+        "name": "Value Curve API",
+        "version": "2.0",
+        "endpoints": {
+            "/api/data": "Get value curve data"
+        }
+    })
 
 @app.route('/api/data')
 def get_data():

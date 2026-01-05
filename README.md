@@ -1,60 +1,123 @@
-# Value Curve Visualization App
+# Value Curve Visualization App v2.0
 
-A Python Flask web application for creating interactive Strategy Canvas visualizations based on the Blue Ocean Strategy framework.
+A modern React + Flask web application for creating interactive Strategy Canvas visualizations based on the Blue Ocean Strategy framework. Built for EverettYoung LLC consultants to deliver professional value curve analyses to clients.
 
 ## Features
 
-- **Interactive Line Charts**: Dynamic value curve visualizations using Chart.js
+- **Modern React UI**: Built with React 18, TypeScript, and Tailwind CSS
+- **Interactive Recharts Visualizations**: Smooth, responsive line charts with real-time updates
 - **Advantage/Disadvantage Highlighting**: Visual analysis of competitive positioning
 - **Multi-Project Support**: Organize different datasets in separate project folders
-- **Responsive Design**: Clean, modern UI with real-time interactivity
+- **Responsive Design**: Mobile-first design that works on all screen sizes (375px, 1024px, 1440px)
+- **EverettYoung Branding**: Professional branded interface with company design system
+- **Loading & Error States**: Polished user experience with skeleton screens and helpful error messages
+
+## Architecture
+
+This is a **hybrid application**:
+- **Backend**: Flask (Python) API server on port 5000
+- **Frontend**: React + Vite development server on port 5173
+- **Communication**: REST API with CORS enabled for development
 
 ## Installation
 
+### Backend Setup
+
 ```bash
-# Create a virtual environment (recommended)
+# Navigate to project root
+cd value_curve
+
+# Create and activate virtual environment (if not already done)
 python -m venv venv
 
-# Activate the virtual environment
 # Windows:
 .\venv\Scripts\Activate.ps1
 # Linux/Mac:
 source venv/bin/activate
 
-# Install dependencies
+# Install Python dependencies
 pip install -r requirements.txt
 ```
 
-## Usage
+### Frontend Setup
 
-### Running with Default Data
 ```bash
-python app.py
+# Navigate to frontend directory
+cd frontend
+
+# Install Node.js dependencies
+npm install
 ```
-This will load `data.json` from the root directory.
 
-### Running with a Specific Project
+## Running the Application
+
+### Quick Start (Recommended)
+
+Use the provided scripts to run both servers simultaneously:
+
+**Windows (PowerShell):**
+```powershell
+.\run-dev.ps1
+```
+
+**Windows (Command Prompt):**
+```batch
+run-dev.bat
+```
+
+This will:
+1. Start the Flask backend on http://localhost:5000
+2. Start the React frontend on http://localhost:5173
+3. Open both in separate terminal windows
+
+**Access the app at: http://localhost:5173**
+
+### Manual Start (Alternative)
+
+If you prefer to run servers manually:
+
+**Terminal 1 - Backend:**
 ```bash
+# From project root
 python app.py projects/testing1/data.json
 ```
 
-### Organizing Your Projects
-It's recommended to organize different use cases in separate folders:
+**Terminal 2 - Frontend:**
+```bash
+# From project root
+cd frontend
+npm run dev
+```
+
+## Project Structure
+
 ```
 value_curve/
-├── app.py
-├── projects/
-│   ├── testing1/
-│   │   └── data.json
-│   ├── enterprise_saas/
-│   │   └── data.json
-│   └── retail_analysis/
+├── app.py                  # Flask API server
+├── requirements.txt        # Python dependencies
+├── run-dev.ps1            # Dev launcher (PowerShell)
+├── run-dev.bat            # Dev launcher (CMD)
+├── projects/              # Data file organization
+│   └── testing1/
 │       └── data.json
-├── static/
-└── templates/
+├── frontend/              # React application
+│   ├── src/
+│   │   ├── components/    # React components
+│   │   │   ├── Header.tsx
+│   │   │   ├── ValueCurveChart.tsx
+│   │   │   └── CompetitorSidebar.tsx
+│   │   ├── types/         # TypeScript interfaces
+│   │   ├── assets/        # Images, logos
+│   │   ├── App.tsx        # Main application
+│   │   └── index.css      # Global styles (Tailwind)
+│   ├── tailwind.config.js # Design system configuration
+│   └── package.json       # Node dependencies
+└── templates/ (legacy)    # Old HTML templates (not used in v2.0)
 ```
 
 ## JSON Data Format
+
+The data format remains the same as v1.0:
 
 ```json
 {
@@ -87,29 +150,105 @@ value_curve/
 
 **Note**: The app automatically detects "Our Solution" or "Blue Ocean" profiles for advantage/disadvantage analysis.
 
-## Using the Highlight Features
+## Using the Application
 
-Once the app is running, you'll see three options on the right sidebar:
+### Competitor Filtering
+- **Select All / Clear All**: Quick buttons to toggle all competitors
+- **Individual Checkboxes**: Click any competitor to show/hide their curve
+- Visual feedback with checkmark icons
 
-1. **No Highlighting**: Standard view showing all curves
-2. **Areas of Advantage**: Highlights features where your solution is significantly better (green)
-3. **Areas of Disadvantage**: Highlights features where competitors have the advantage (red)
+### Highlight Modes
+1. **No Highlighting**: Standard view showing all visible curves
+2. **Areas of Advantage**: Highlights features where your solution outperforms (green shading)
+3. **Areas of Disadvantage**: Highlights features where competitors lead (red shading)
 
-The threshold for "significant" is set to 1.0 point difference (configurable in `static/js/main.js`).
+The threshold for "significant" difference is 1.0 points (configurable in `ValueCurveChart.tsx`).
 
-## Accessing the App
+## Development
 
-After starting the server, open your browser to:
+### Frontend Development
+```bash
+cd frontend
+npm run dev       # Start dev server with hot reload
+npm run build     # Build for production
+npm run preview   # Preview production build
 ```
-http://localhost:5000
+
+### Backend Development
+The Flask API runs in debug mode by default, auto-reloading on file changes.
+
+### Environment Variables
+Create `frontend/.env.development` to customize:
 ```
+VITE_API_URL=http://localhost:5000
+```
+
+## Design System
+
+This application follows the **EverettYoung LLC Design System**:
+
+- **Colors**:
+  - Primary: #8484E6 (purple), #A2C799 (green)
+  - Accent: #587553
+  - Background: #1E222B
+- **Typography**: Liter/system-ui font family
+- **Spacing**: 4px base unit system
+- **Components**: Card patterns with 8px border radius, subtle shadows
+
+See `.claude/design-system.md` for full specifications.
 
 ## Technology Stack
 
-- **Backend**: Flask (Python)
-- **Frontend**: Chart.js with Annotation Plugin
-- **Styling**: Vanilla CSS
+### Frontend
+- **React 18** with TypeScript
+- **Vite** for fast builds and HMR
+- **Tailwind CSS** for utility-first styling
+- **Recharts** for data visualization
+- **Lucide React** for icons
+
+### Backend
+- **Flask 3.1.x** (Python web framework)
+- **Flask-CORS** for cross-origin requests
+
+## Troubleshooting
+
+### Frontend can't connect to backend
+- Ensure Flask is running on port 5000
+- Check CORS settings in `app.py`
+- Verify `VITE_API_URL` in `.env.development`
+
+### TypeScript errors
+```bash
+cd frontend
+npm run build  # Will show all type errors
+```
+
+### Port already in use
+- Frontend (5173): Change in `frontend/vite.config.ts`
+- Backend (5000): Change in `app.py` and update `VITE_API_URL`
+
+## Deployment
+
+### Building for Production
+```bash
+cd frontend
+npm run build
+```
+
+The `dist/` folder can be served by Flask or any static hosting service.
+
+### Production Flask Setup
+Update `app.py` to serve the built React app as static files.
+
+## Version History
+
+- **v2.0** (2026-01): Complete rewrite with React + TypeScript + Tailwind CSS. Added EverettYoung branding, responsive design, modern component architecture.
+- **v1.0** (2024): Initial Flask app with Chart.js and vanilla HTML/CSS.
 
 ## License
 
 MIT
+
+---
+
+**Built with ❤️ by EverettYoung LLC**
