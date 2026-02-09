@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import {
   LineChart,
   Line,
@@ -6,39 +6,66 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
-  ReferenceArea,
+  ReferenceLine,
 } from 'recharts';
-import type { ValueCurveData, HighlightMode, ChartDataPoint } from '../types';
+import type { ValueCurveData, HighlightMode, ChartDataPoint, UserJob } from '../types';
+import { isOurSolution, buildStyleMap } from '../types';
+
+// Custom XAxis tick that shows feature description on hover
+const FeatureTick = ({ x, y, payload, userJobs }: {
+  x?: number;
+  y?: number;
+  payload?: { value: string };
+  userJobs?: UserJob[];
+}) => {
+  const name = payload?.value || '';
+  const job = userJobs?.find((j) => j.name === name);
+  const description = job?.description || '';
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text
+        x={0}
+        y={0}
+        dy={8}
+        textAnchor="end"
+        fill="#2c3e50"
+        fontSize={11}
+        transform="rotate(-35)"
+        style={{ cursor: description ? 'help' : 'default' }}
+      >
+        {name}
+        {description && <title>{description}</title>}
+      </text>
+    </g>
+  );
+};
 
 interface ValueCurveChartProps {
   data: ValueCurveData;
   visibleCompetitors: Set<string>;
   highlightMode: HighlightMode;
+  onHighlightedIndicesChange?: (indices: number[]) => void;
 }
 
-// Color palette complementary to brand colors
-const COLORS = [
-  '#8484E6', // Primary purple
-  '#A2C799', // Primary green
-  '#587553', // Accent green
-  '#B5BAD0', // Neutral light
-  '#9297A8', // Neutral
-  '#6B9BD1', // Blue
-  '#E8A87C', // Orange
-  '#D4A5D4', // Lavender
-];
 
 const ValueCurveChart: React.FC<ValueCurveChartProps> = ({
   data,
   visibleCompetitors,
   highlightMode,
+  onHighlightedIndicesChange,
 }) => {
-  // Transform data for Recharts format
-  const chartData: ChartDataPoint[] = useMemo(() => {
+  // Build stable style map from shared config
+  const styleMap = useMemo(() => buildStyleMap(data.curves), [data.curves]);
+
+  // Transform data for Recharts format - include highlight info
+  const chartData = useMemo(() => {
     return data.features.map((feature, index) => {
-      const dataPoint: ChartDataPoint = { feature };
+      const dataPoint: ChartDataPoint & { featureIndex: number } = {
+        feature,
+        featureIndex: index,
+      };
       data.curves.forEach((curve) => {
         dataPoint[curve.customer_profile] = curve.relative_customer_value[index];
       });
@@ -55,89 +82,81 @@ const ValueCurveChart: React.FC<ValueCurveChartProps> = ({
     );
   }, [data.curves]);
 
-  // Calculate advantage/disadvantage areas
-  const highlightAreas = useMemo(() => {
-    if (highlightMode === 'none' || !ourSolution) return [];
+  // Calculate qualifying indices for highlighting
+  const qualifyingIndices = useMemo(() => {
+    if (highlightMode === 'none' || !ourSolution) {
+      return [];
+    }
 
-    const areas: Array<{ startFeature: string; endFeature: string; type: 'advantage' | 'disadvantage' }> = [];
     const threshold = 1.0;
+    const indices: number[] = [];
 
-    // Find indices that qualify for highlighting
-    const qualifyingIndices: number[] = [];
     data.features.forEach((_, index) => {
       const ourValue = ourSolution.relative_customer_value[index];
       const competitorValues = data.curves
         .filter((c) => c.customer_profile !== ourSolution.customer_profile)
         .map((c) => c.relative_customer_value[index]);
 
-      const maxCompetitor = Math.max(...competitorValues);
-      const difference = ourValue - maxCompetitor;
+      if (competitorValues.length === 0) return;
 
+      const maxCompetitor = Math.max(...competitorValues);
+      const minCompetitor = Math.min(...competitorValues);
+
+      // ADVANTAGE: Our Solution beats ALL competitors (higher than the highest)
+      // DISADVANTAGE: Our Solution loses to ALL competitors (lower than the lowest)
       if (
-        (highlightMode === 'advantage' && difference >= threshold) ||
-        (highlightMode === 'disadvantage' && difference <= -threshold)
+        (highlightMode === 'advantage' && ourValue - maxCompetitor >= threshold) ||
+        (highlightMode === 'disadvantage' && minCompetitor - ourValue >= threshold)
       ) {
-        qualifyingIndices.push(index);
+        indices.push(index);
       }
     });
 
-    // Group consecutive indices into ranges
-    if (qualifyingIndices.length > 0) {
-      let rangeStart = qualifyingIndices[0];
-      let rangeEnd = qualifyingIndices[0];
-
-      for (let i = 1; i <= qualifyingIndices.length; i++) {
-        if (i < qualifyingIndices.length && qualifyingIndices[i] === rangeEnd + 1) {
-          // Extend the current range
-          rangeEnd = qualifyingIndices[i];
-        } else {
-          // End current range and create area
-          // For ReferenceArea to work with categorical axis, we use feature names
-          // and extend slightly before/after to make single points visible
-          const startIdx = Math.max(0, rangeStart);
-          const endIdx = Math.min(data.features.length - 1, rangeEnd);
-
-          areas.push({
-            startFeature: data.features[startIdx],
-            endFeature: data.features[endIdx],
-            type: highlightMode === 'advantage' ? 'advantage' : 'disadvantage',
-          });
-
-          // Start new range if there are more indices
-          if (i < qualifyingIndices.length) {
-            rangeStart = qualifyingIndices[i];
-            rangeEnd = qualifyingIndices[i];
-          }
-        }
-      }
-    }
-
-    return areas;
+    return indices;
   }, [data, ourSolution, highlightMode]);
 
+  // Notify parent component of highlighted indices changes
+  useEffect(() => {
+    if (onHighlightedIndicesChange) {
+      onHighlightedIndicesChange(qualifyingIndices);
+    }
+  }, [qualifyingIndices, onHighlightedIndicesChange]);
+
+  // Get highlight color
+  const highlightColor = highlightMode === 'advantage' ? '#27ae60' : '#e74c3c';
+
   return (
-    <div className="w-full h-full">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="w-full h-full pl-12 flex flex-col [&_svg]:!overflow-visible">
+      <ResponsiveContainer width="100%" height="100%" className="flex-1 min-h-0">
         <LineChart
           data={chartData}
-          margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+          margin={{ top: 20, right: 40, left: 70, bottom: 20 }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#ecf0f1" />
+
+          {/* Render vertical highlight lines for each qualifying feature */}
+          {highlightMode !== 'none' && qualifyingIndices.map((featureIndex) => (
+            <ReferenceLine
+              key={`highlight-${featureIndex}`}
+              x={data.features[featureIndex]}
+              stroke={highlightColor}
+              strokeWidth={40}
+              strokeOpacity={0.2}
+            />
+          ))}
+
           <XAxis
             dataKey="feature"
-            angle={-45}
+            angle={-35}
             textAnchor="end"
-            height={100}
-            tick={{ fill: '#2c3e50', fontSize: 12 }}
-            label={{
-              value: 'Key User Jobs',
-              position: 'insideBottom',
-              offset: -50,
-              style: { fill: '#2c3e50', fontWeight: 600 },
-            }}
+            height={80}
+            interval={0}
+            tick={<FeatureTick userJobs={data.user_jobs} />}
+            tickMargin={8}
           />
           <YAxis
-            domain={[-5, 5]}
+            domain={[0, 5]}
+            ticks={[0, 1, 2, 3, 4, 5]}
             tick={{ fill: '#2c3e50', fontSize: 12 }}
             label={{
               value: 'Relative Customer Value',
@@ -154,42 +173,56 @@ const ValueCurveChart: React.FC<ValueCurveChartProps> = ({
               padding: '12px',
             }}
           />
-          <Legend
-            wrapperStyle={{ paddingTop: '20px' }}
-            iconType="line"
-          />
 
-          {/* Highlight areas for advantage/disadvantage */}
-          {highlightAreas.map((area, idx) => (
-            <ReferenceArea
-              key={idx}
-              x1={area.startFeature}
-              x2={area.endFeature}
-              y1={-5}
-              y2={5}
-              fill={area.type === 'advantage' ? '#27ae60' : '#e74c3c'}
-              fillOpacity={0.2}
-              stroke={area.type === 'advantage' ? '#27ae60' : '#e74c3c'}
-              strokeOpacity={0.3}
-            />
-          ))}
-
-          {/* Render lines for each visible competitor */}
+          {/* Render lines - "Our Solution" solid green, competitors dashed with distinct colors */}
           {data.curves
             .filter((curve) => visibleCompetitors.has(curve.customer_profile))
-            .map((curve, index) => (
-              <Line
-                key={curve.customer_profile}
-                type="monotone"
-                dataKey={curve.customer_profile}
-                stroke={COLORS[index % COLORS.length]}
-                strokeWidth={3}
-                dot={{ r: 5 }}
-                activeDot={{ r: 7 }}
-              />
-            ))}
+            .map((curve) => {
+              const style = styleMap.get(curve.customer_profile)!;
+              return (
+                <Line
+                  key={curve.customer_profile}
+                  type="monotone"
+                  dataKey={curve.customer_profile}
+                  stroke={style.color}
+                  strokeWidth={style.strokeWidth}
+                  strokeDasharray={style.strokeDasharray}
+                  dot={{ r: isOurSolution(curve.customer_profile) ? 6 : 4, fill: style.color }}
+                  activeDot={{ r: 8 }}
+                />
+              );
+            })}
         </LineChart>
       </ResponsiveContainer>
+
+      {/* Legend showing line styles */}
+      <div className="text-center mt-2 flex-shrink-0 pb-2">
+        <p className="text-sm font-semibold text-gray-700 mb-2">Competitors</p>
+        <div className="flex flex-wrap justify-center gap-5">
+          {data.curves
+            .filter((curve) => visibleCompetitors.has(curve.customer_profile))
+            .map((curve) => {
+              const style = styleMap.get(curve.customer_profile)!;
+              return (
+                <div key={curve.customer_profile} className="flex items-center gap-2">
+                  <svg width="30" height="12">
+                    <line
+                      x1="0"
+                      y1="6"
+                      x2="30"
+                      y2="6"
+                      stroke={style.color}
+                      strokeWidth={style.strokeWidth}
+                      strokeDasharray={style.strokeDasharray}
+                    />
+                    <circle cx="15" cy="6" r={isOurSolution(curve.customer_profile) ? 4 : 3} fill={style.color} />
+                  </svg>
+                  <span className="text-xs text-gray-700 font-medium">{curve.customer_profile}</span>
+                </div>
+              );
+            })}
+        </div>
+      </div>
     </div>
   );
 };
