@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { CheckCircle2, Circle, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import type { ValueCurveData, HighlightMode } from '../types';
+import { isOurSolution, buildStyleMap } from '../types';
 
 interface CompetitorSidebarProps {
   data: ValueCurveData;
@@ -21,6 +22,8 @@ const CompetitorSidebar: React.FC<CompetitorSidebarProps> = ({
   highlightMode,
   onHighlightModeChange,
 }) => {
+  const styleMap = useMemo(() => buildStyleMap(data.curves), [data.curves]);
+
   return (
     <div className="w-full lg:w-[280px] card space-y-6">
       {/* Competitors Section */}
@@ -49,6 +52,7 @@ const CompetitorSidebar: React.FC<CompetitorSidebarProps> = ({
         <div className="space-y-2 max-h-[250px] overflow-y-auto">
           {data.curves.map((curve) => {
             const isVisible = visibleCompetitors.has(curve.customer_profile);
+            const style = styleMap.get(curve.customer_profile)!;
             return (
               <label
                 key={curve.customer_profile}
@@ -60,13 +64,30 @@ const CompetitorSidebar: React.FC<CompetitorSidebarProps> = ({
                   onChange={() => onToggleCompetitor(curve.customer_profile)}
                   className="sr-only"
                 />
-                <div className="mr-3">
+                <div className="mr-2">
                   {isVisible ? (
                     <CheckCircle2 className="w-5 h-5 text-primary" />
                   ) : (
                     <Circle className="w-5 h-5 text-gray-300" />
                   )}
                 </div>
+                <svg width="24" height="12" className="mr-2 flex-shrink-0">
+                  <line
+                    x1="0"
+                    y1="6"
+                    x2="24"
+                    y2="6"
+                    stroke={style.color}
+                    strokeWidth={style.strokeWidth}
+                    strokeDasharray={style.strokeDasharray}
+                  />
+                  <circle
+                    cx="12"
+                    cy="6"
+                    r={isOurSolution(curve.customer_profile) ? 3.5 : 2.5}
+                    fill={style.color}
+                  />
+                </svg>
                 <span className="text-sm text-gray-700 flex-1">
                   {curve.customer_profile}
                 </span>

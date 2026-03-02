@@ -17,6 +17,19 @@
 - Extract reusable components to /components
 - Mock data in /data with realistic consulting scenarios
 
+## Development Commands
+
+```powershell
+# Quick start (both frontend + backend)
+.\run-dev.ps1
+
+# Manual start - Backend (Flask)
+python app.py projects/testing1/data.json  # Port 5000
+
+# Manual start - Frontend (Vite)
+cd frontend && npm run dev  # Port 5173
+```
+
 ## When Building Prototypes
 1. Start with mobile-first responsive design
 2. Use semantic HTML elements
