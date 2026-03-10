@@ -6,17 +6,13 @@
 The app is a consultant-facing tool where an analyst manually creates projects by defining an industry, competitors, features, and value scores. All data is entered from scratch. The data model is simple: a project contains an industry, a user persona (text), features, and competitor value curves (0-5 scores per feature).
 
 ### Goal
-Transform the app into a **user-facing product** that lets engineers and designers quickly understand their product's competitive position. Instead of building everything from scratch, users select a **job to be done**, pick a **user persona**, and immediately see pre-filled competitive analysis from a curated catalog. They then add their own product to see where they stand.
+Transform the app into a **user-facing product** that lets engineers and designers quickly understand their product's competitive position. Users navigate a guided flow - selecting a domain, persona, product categories, and competitors - with pre-filled catalog data available at each step. They can also create custom entries at every step. They then add their own product to see where they stand.
 
-### Key Design Insight: Jobs as the Top-Level Entity
-The previous draft organized the catalog by **product category** (SIEM, EDR, etc.). This is the wrong entry point for users. Instead, the top-level concept is the **User Job** from the Jobs-To-Be-Done framework.
-
-A job like "Triage Security Alerts" cuts across multiple product categories - SIEM, XDR, SOAR, and hyperautomation platforms all compete to fulfill this job. By starting with the job, we:
-- Speak the user's language (they think about what they're trying to accomplish, not vendor categories)
-- Surface **cross-category competition** (the most strategically interesting insight)
-- Naturally align with value curve methodology, which measures how well solutions deliver value for a specific job
-
-Product categories become metadata about *where a competitor comes from*, not the organizing principle.
+### Key Design Principles
+1. **Domain-first navigation** using CISSP domains as the top-level organizing structure
+2. **Select OR Create at every step** - pre-filled catalog data accelerates the flow, but users are never locked into it
+3. **User Jobs are features, not navigation** - Jobs-to-be-done (user_jobs) remain as the competitive factors/features within the value curve data, not as a separate selection step
+4. **Cross-category competition** - users can select multiple product categories to see competitors from different market segments compared side-by-side
 
 ---
 
@@ -24,19 +20,30 @@ Product categories become metadata about *where a competitor comes from*, not th
 
 ```
 ┌──────────────┐    ┌──────────────────┐    ┌────────────────────┐
-│  Log In /    │───>│  Select a Job    │───>│  Select User       │
-│  Landing     │    │  To Be Done      │    │  Persona           │
-└──────────────┘    └──────────────────┘    └────────────────────┘
-                    │ "Triage Security  │    │ "SOC Analyst at    │
-                    │  Alerts"          │    │  a mid-sized bank" │
+│  Log In /    │───>│  Select a        │───>│  Select or Create  │
+│  Landing     │    │  Domain          │    │  User Persona      │
+└──────────────┘    │  (CISSP domains) │    │                    │
                     └──────────────────┘    └────────────────────┘
                                                       │
                     ┌──────────────────┐               │
-                    │  Compare View:   │<──────────────┘
-                    │  Pre-filled      │
-                    │  competitor      │
+                    │  Select or Create│<──────────────┘
+                    │  Product         │
+                    │  Categories      │
+                    │  (one or more)   │
+                    └──────────────────┘
+                              │
+                    ┌──────────────────┐
+                    │  Select or Create│
+                    │  Competitors     │
+                    │  (from selected  │
+                    │   categories)    │
+                    └──────────────────┘
+                              │
+                    ┌──────────────────┐
+                    │  View pre-filled │
                     │  value curves    │
-                    │  (cross-category)│
+                    │  for selected    │
+                    │  competitors     │
                     └──────────────────┘
                               │
                     ┌──────────────────┐
@@ -48,20 +55,27 @@ Product categories become metadata about *where a competitor comes from*, not th
                               │
                     ┌──────────────────┐
                     │  Full Comparison │
-                    │  Your product    │
-                    │  overlaid on     │
+                    │  Your product vs │
+                    │  selected        │
                     │  competitors     │
                     └──────────────────┘
 ```
 
 ### Step-by-Step
 
-1. **Landing Page** - User sees a curated list of user jobs, grouped by domain (e.g., "Security Operations" contains "Triage Security Alerts", "Investigate Incidents", "Hunt for Threats"). Each job card shows the job description and the number of competing solutions analyzed.
-2. **Job Selected** - User picks a job (e.g., "Triage Security Alerts"). The app shows available user personas for this job, since the value of solutions depends on who is performing the job.
-3. **Persona Selected** - User picks a persona (e.g., "SOC Analyst at a mid-sized enterprise"). The app loads pre-filled value curves for competitors across all relevant product categories (SIEM, XDR, SOAR, etc.), scored from that persona's perspective.
-4. **Pre-filled View** - User sees the value curve chart with competitors drawn from multiple product categories. Competitors can be labeled with their category for context. Toggle, highlight, etc. all work as today.
-5. **"Add My Product"** - User clicks a CTA to add their own product. A focused scoring interface appears where they rate their product on each feature (0-5 scale) with optional rationale.
-6. **Full Comparison** - The chart now shows "My Product" as the green solid line overlaid on the cross-category competitor curves. Advantage/disadvantage highlighting reveals where the user's product leads or trails.
+1. **Landing Page** - User sees the CISSP domains as selectable cards. Each card shows the domain name, description, and counts of available personas/categories/competitors.
+
+2. **Domain Selected → Persona Step** - User sees pre-built personas for this domain (e.g., "SOC Analyst (Tier 1-2)", "Detection Engineer", "CISO") as selectable cards. They can pick one OR create a custom persona by entering a name, description, and context.
+
+3. **Persona Selected → Category Step** - User sees product categories relevant to this domain (e.g., "SIEM", "XDR", "SOAR", "Hyperautomation"). They can select **one or more** categories, and/or create custom categories. Selecting multiple categories enables cross-category comparison.
+
+4. **Categories Selected → Competitor Step** - User sees competitors grouped by their selected categories, drawn from the catalog. They can toggle individual competitors on/off and/or create custom competitors. Each competitor shows its name, short description, and category badge.
+
+5. **Competitors Confirmed → Value Curve View** - The app loads pre-filled value curve data: features are determined by the persona, scores are loaded per competitor. The existing `ValueCurveChart` renders the comparison. Users can toggle competitors, use highlight modes, etc.
+
+6. **"Add My Product"** - User clicks a CTA to add their own product. A focused scoring interface appears where they rate their product on each feature (0-5 scale) with optional rationale.
+
+7. **Full Comparison** - The chart shows "My Product" as the green solid line overlaid on the selected competitor curves. Advantage/disadvantage highlighting reveals where the user's product leads or trails.
 
 ---
 
@@ -70,24 +84,23 @@ Product categories become metadata about *where a competitor comes from*, not th
 ### Conceptual Hierarchy
 
 ```
-Domain (e.g., "Security Operations")
-  └── Job (e.g., "Triage Security Alerts")
-        ├── related_categories: [SIEM, XDR, SOAR, Hyperautomation]
-        ├── Personas: [SOC Analyst, Detection Engineer, SOC Manager]
-        └── Per Persona:
-              ├── Competitive Factors (features relevant to this job+persona)
-              ├── Competitors (drawn from across related categories)
-              └── Value scores per competitor × feature
+Domain (CISSP domain, e.g., "Security Operations")
+  ├── Personas (who is doing the work)
+  │     └── Features/User Jobs (what this persona needs to accomplish)
+  ├── Product Categories (types of solutions)
+  │     └── Competitors (specific products in each category)
+  └── Scores (per persona × competitor → value per feature)
 ```
 
 ### Key Relationships
-- **Job → Product Categories**: Many-to-many. A job can be addressed by products from multiple categories. A category can be relevant to multiple jobs.
-- **Job → Personas**: One-to-many. Each job has several personas who perform that job differently and value different things.
-- **Job + Persona → Features**: The competitive factors are specific to a job+persona combination. A SOC Analyst triaging alerts cares about "Time to First Response" while a SOC Manager cares about "Team Workload Visibility."
-- **Job + Persona → Competitors**: Competitors are drawn from across the related product categories. Each competitor is scored on the persona-specific features.
+- **Domain → Personas**: One-to-many. Each domain has several relevant personas.
+- **Domain → Product Categories**: One-to-many. Each domain has several relevant product categories.
+- **Category → Competitors**: One-to-many. Each category contains specific products.
+- **Persona → Features**: One-to-many. The persona determines which competitive factors (user jobs) matter. A SOC Analyst cares about "Assess Alert Severity" while a CISO cares about "Demonstrate Compliance Posture."
+- **Persona × Competitor → Scores**: The value scores for each competitor on each feature, from the perspective of a specific persona.
 
-### Why This Works
-The insight is that when a user says "I'm building a product that helps SOC Analysts triage alerts better," the competition isn't just other SIEM products. It's also SOAR platforms, XDR tools, and even hyperautomation platforms. Starting from the job naturally surfaces this cross-category competition.
+### Why Features Are Persona-Dependent
+The same product can score very differently depending on who is evaluating it. Splunk ES might score 4/5 on "Ad-hoc Investigation" for a Detection Engineer but 2/5 on "Board-Level Reporting" for a CISO. By tying features to the persona, we ensure the value curve reflects what actually matters to the user's target customer.
 
 ---
 
@@ -97,26 +110,47 @@ The insight is that when a user says "I'm building a product that helps SOC Anal
 
 ```
 catalog/
-├── domains.json                              # Top-level groupings
-├── jobs/
-│   ├── jobs.json                             # Master list of all jobs
-│   ├── triage-security-alerts/
-│   │   ├── job.json                          # Job metadata + related categories
-│   │   ├── competitors.json                  # All competitors for this job (cross-category)
-│   │   └── personas/
-│   │       ├── soc-analyst.json              # Full value curve data
-│   │       ├── detection-engineer.json
-│   │       └── soc-manager.json
-│   ├── investigate-security-incidents/
-│   │   ├── job.json
-│   │   ├── competitors.json
-│   │   └── personas/
-│   │       ├── ir-analyst.json
-│   │       └── ir-lead.json
-│   └── hunt-for-threats/
-│       ├── ...
-├── categories/
-│   └── categories.json                       # Reference list of product categories
+├── domains.json                                  # The 8 CISSP domains
+│
+├── security-operations/                          # One directory per domain
+│   ├── domain.json                               # Domain metadata
+│   ├── personas/
+│   │   ├── _index.json                           # List of available personas
+│   │   ├── soc-analyst.json                      # Persona details + features
+│   │   ├── detection-engineer.json
+│   │   └── ciso.json
+│   ├── categories/
+│   │   ├── _index.json                           # List of categories for this domain
+│   │   ├── siem/
+│   │   │   ├── category.json                     # Category metadata
+│   │   │   └── competitors.json                  # Competitors in this category
+│   │   ├── xdr/
+│   │   │   ├── category.json
+│   │   │   └── competitors.json
+│   │   ├── soar/
+│   │   │   ├── category.json
+│   │   │   └── competitors.json
+│   │   └── hyperautomation/
+│   │       ├── category.json
+│   │       └── competitors.json
+│   └── scores/
+│       ├── soc-analyst/                          # Scores organized by persona
+│       │   ├── siem.json                         # Scores for SIEM competitors on SOC Analyst features
+│       │   ├── xdr.json                          # Scores for XDR competitors on SOC Analyst features
+│       │   └── soar.json
+│       ├── detection-engineer/
+│       │   ├── siem.json
+│       │   └── xdr.json
+│       └── ciso/
+│           ├── siem.json
+│           └── soar.json
+│
+├── security-and-risk-management/                 # Another CISSP domain
+│   ├── domain.json
+│   ├── personas/
+│   │   └── ...
+│   └── ...
+└── ...
 ```
 
 ### domains.json
@@ -125,142 +159,101 @@ catalog/
   {
     "id": "security-operations",
     "name": "Security Operations",
-    "description": "Jobs related to detecting, triaging, investigating, and responding to security threats",
-    "icon": "shield",
-    "job_count": 5
-  }
-]
-```
-
-### jobs/jobs.json
-```json
-[
-  {
-    "id": "triage-security-alerts",
-    "domain_id": "security-operations",
-    "name": "Triage Security Alerts",
-    "description": "Rapidly assess, prioritize, and route security alerts to determine which require investigation",
-    "related_categories": ["siem", "xdr", "soar", "hyperautomation"],
+    "description": "Monitoring, detection, incident response, and operational security management",
+    "cissp_domain_number": 7,
+    "icon": "shield-alert",
     "persona_count": 3,
-    "competitor_count": 8
+    "category_count": 4
   },
   {
-    "id": "investigate-security-incidents",
-    "domain_id": "security-operations",
-    "name": "Investigate Security Incidents",
-    "description": "Deep-dive into confirmed incidents to determine scope, impact, root cause, and remediation steps",
-    "related_categories": ["siem", "xdr", "edr", "dfir"],
+    "id": "security-and-risk-management",
+    "name": "Security and Risk Management",
+    "description": "Governance, compliance, risk assessment, security policies, and business continuity",
+    "cissp_domain_number": 1,
+    "icon": "scale",
     "persona_count": 2,
-    "competitor_count": 6
+    "category_count": 3
+  },
+  {
+    "id": "asset-security",
+    "name": "Asset Security",
+    "description": "Classification, ownership, privacy, retention, and protection of data and assets",
+    "cissp_domain_number": 2,
+    "icon": "database"
+  },
+  {
+    "id": "security-architecture-and-engineering",
+    "name": "Security Architecture and Engineering",
+    "description": "Security design principles, cryptography, and secure system architecture",
+    "cissp_domain_number": 3,
+    "icon": "building"
+  },
+  {
+    "id": "communication-and-network-security",
+    "name": "Communication and Network Security",
+    "description": "Network architecture, protocols, secure channels, and network attack mitigation",
+    "cissp_domain_number": 4,
+    "icon": "network"
+  },
+  {
+    "id": "identity-and-access-management",
+    "name": "Identity and Access Management",
+    "description": "Authentication, authorization, identity lifecycle, and access control mechanisms",
+    "cissp_domain_number": 5,
+    "icon": "fingerprint"
+  },
+  {
+    "id": "security-assessment-and-testing",
+    "name": "Security Assessment and Testing",
+    "description": "Vulnerability assessment, penetration testing, audits, and security metrics",
+    "cissp_domain_number": 6,
+    "icon": "clipboard-check"
+  },
+  {
+    "id": "software-development-security",
+    "name": "Software Development Security",
+    "description": "Secure coding, SDLC integration, application security testing, and DevSecOps",
+    "cissp_domain_number": 8,
+    "icon": "code"
   }
 ]
 ```
 
-### categories/categories.json (reference data)
+### personas/_index.json (per domain)
 ```json
 [
   {
-    "id": "siem",
-    "name": "SIEM",
-    "full_name": "Security Information and Event Management",
-    "description": "Centralized log collection, correlation, and threat detection"
-  },
-  {
-    "id": "xdr",
-    "name": "XDR",
-    "full_name": "Extended Detection and Response",
-    "description": "Cross-domain detection and response across endpoints, network, cloud, and email"
-  },
-  {
-    "id": "soar",
-    "name": "SOAR",
-    "full_name": "Security Orchestration, Automation and Response",
-    "description": "Automated playbooks and case management for incident response"
-  },
-  {
-    "id": "hyperautomation",
-    "name": "Hyperautomation",
-    "full_name": "Hyperautomation Platforms",
-    "description": "General-purpose automation platforms applied to security workflows"
-  }
-]
-```
-
-### jobs/triage-security-alerts/job.json
-```json
-{
-  "id": "triage-security-alerts",
-  "domain_id": "security-operations",
-  "name": "Triage Security Alerts",
-  "description": "Rapidly assess, prioritize, and route security alerts to determine which require investigation",
-  "long_description": "Alert triage is one of the most time-consuming and critical functions in security operations. Analysts must quickly determine if an alert is a true positive, assess its severity, gather relevant context, and either escalate or close it. The explosion of alerts from multiple security tools makes this job increasingly difficult and a primary source of analyst burnout.",
-  "related_categories": ["siem", "xdr", "soar", "hyperautomation"]
-}
-```
-
-### jobs/triage-security-alerts/competitors.json
-```json
-[
-  {
-    "id": "splunk-es",
-    "name": "Splunk Enterprise Security",
-    "short_name": "Splunk ES",
-    "category_id": "siem",
-    "description": "Industry-leading SIEM with risk-based alerting and powerful search"
-  },
-  {
-    "id": "microsoft-sentinel",
-    "name": "Microsoft Sentinel",
-    "short_name": "Sentinel",
-    "category_id": "siem",
-    "description": "Cloud-native SIEM with AI-driven incident correlation"
-  },
-  {
-    "id": "crowdstrike-falcon",
-    "name": "CrowdStrike Falcon",
-    "short_name": "CrowdStrike",
-    "category_id": "xdr",
-    "description": "XDR platform with endpoint-first detection and response"
-  },
-  {
-    "id": "palo-alto-xsiam",
-    "name": "Palo Alto XSIAM",
-    "short_name": "XSIAM",
-    "category_id": "xdr",
-    "description": "AI-driven security operations platform"
-  },
-  {
-    "id": "cortex-xsoar",
-    "name": "Cortex XSOAR",
-    "short_name": "XSOAR",
-    "category_id": "soar",
-    "description": "SOAR platform with automated playbooks and case management"
-  },
-  {
-    "id": "tines",
-    "name": "Tines",
-    "short_name": "Tines",
-    "category_id": "hyperautomation",
-    "description": "No-code security automation platform"
-  }
-]
-```
-
-### jobs/triage-security-alerts/personas/soc-analyst.json
-
-This is the core data file. It matches the existing `ValueCurveData` shape so the chart renders it directly:
-
-```json
-{
-  "persona": {
     "id": "soc-analyst",
     "name": "SOC Analyst (Tier 1-2)",
     "description": "Frontline analyst who triages alerts, performs initial investigation, and escalates confirmed incidents",
-    "context": "Mid-sized enterprise SOC, handles 200-500 alerts per day"
+    "context": "Mid-sized enterprise SOC, handles 200-500 alerts per day",
+    "feature_count": 6
   },
-  "industry": "Security Alert Triage Solutions",
-  "user_persona": "SOC Analyst (Tier 1-2) at a mid-sized enterprise",
-  "user_jobs": [
+  {
+    "id": "detection-engineer",
+    "name": "Detection Engineer",
+    "description": "Writes and maintains detection rules, tunes alert logic, and reduces false positives",
+    "context": "Mid-sized enterprise with 5,000-20,000 employees",
+    "feature_count": 6
+  },
+  {
+    "id": "ciso",
+    "name": "CISO",
+    "description": "Chief Information Security Officer responsible for security strategy, risk management, and executive reporting",
+    "context": "Mid-sized enterprise, reports to CEO/Board",
+    "feature_count": 5
+  }
+]
+```
+
+### personas/soc-analyst.json (persona detail + features)
+```json
+{
+  "id": "soc-analyst",
+  "name": "SOC Analyst (Tier 1-2)",
+  "description": "Frontline analyst who triages alerts, performs initial investigation, and escalates confirmed incidents",
+  "context": "Mid-sized enterprise SOC, handles 200-500 alerts per day",
+  "features": [
     {
       "name": "Assess Alert Severity",
       "description": "Quickly determine if an alert is critical, high, medium, or low priority based on available context"
@@ -285,39 +278,102 @@ This is the core data file. It matches the existing `ValueCurveData` shape so th
       "name": "Track Alert Throughput",
       "description": "Manage personal queue and maintain SLA compliance for alert response times"
     }
-  ],
-  "features": [
-    "Assess Alert Severity",
-    "Gather Context",
-    "Reduce False Positives",
-    "Correlate Related Alerts",
-    "Escalate with Context",
-    "Track Alert Throughput"
-  ],
+  ]
+}
+```
+
+### categories/_index.json (per domain)
+```json
+[
+  {
+    "id": "siem",
+    "name": "SIEM",
+    "full_name": "Security Information and Event Management",
+    "description": "Centralized log collection, correlation, and threat detection",
+    "competitor_count": 4
+  },
+  {
+    "id": "xdr",
+    "name": "XDR",
+    "full_name": "Extended Detection and Response",
+    "description": "Cross-domain detection and response across endpoints, network, cloud, and email",
+    "competitor_count": 3
+  },
+  {
+    "id": "soar",
+    "name": "SOAR",
+    "full_name": "Security Orchestration, Automation and Response",
+    "description": "Automated playbooks and case management for incident response",
+    "competitor_count": 3
+  },
+  {
+    "id": "hyperautomation",
+    "name": "Hyperautomation",
+    "full_name": "Hyperautomation Platforms",
+    "description": "General-purpose automation platforms applied to security workflows",
+    "competitor_count": 2
+  }
+]
+```
+
+### categories/siem/competitors.json
+```json
+[
+  {
+    "id": "splunk-es",
+    "name": "Splunk Enterprise Security",
+    "short_name": "Splunk ES",
+    "description": "Industry-leading SIEM with risk-based alerting and powerful search"
+  },
+  {
+    "id": "microsoft-sentinel",
+    "name": "Microsoft Sentinel",
+    "short_name": "Sentinel",
+    "description": "Cloud-native SIEM with AI-driven incident correlation"
+  },
+  {
+    "id": "elastic-security",
+    "name": "Elastic Security",
+    "short_name": "Elastic",
+    "description": "Open-core SIEM built on the Elastic Stack"
+  },
+  {
+    "id": "ibm-qradar",
+    "name": "IBM QRadar",
+    "short_name": "QRadar",
+    "description": "Enterprise SIEM with offense-based correlation"
+  }
+]
+```
+
+### scores/soc-analyst/siem.json (the core scoring data)
+
+This file contains value scores for all SIEM competitors, evaluated against the SOC Analyst's features:
+
+```json
+{
+  "persona_id": "soc-analyst",
+  "category_id": "siem",
   "curves": [
     {
-      "customer_profile": "Splunk ES (SIEM)",
+      "customer_profile": "Splunk ES",
       "relative_customer_value": [3, 4, 2, 3, 2, 3]
     },
     {
-      "customer_profile": "Sentinel (SIEM)",
+      "customer_profile": "Sentinel",
       "relative_customer_value": [3, 3, 3, 4, 3, 3]
     },
     {
-      "customer_profile": "CrowdStrike (XDR)",
-      "relative_customer_value": [4, 3, 4, 4, 3, 2]
+      "customer_profile": "Elastic",
+      "relative_customer_value": [2, 3, 2, 2, 2, 3]
     },
     {
-      "customer_profile": "XSOAR (SOAR)",
-      "relative_customer_value": [2, 2, 3, 2, 4, 4]
-    },
-    {
-      "customer_profile": "Tines (Hyperautomation)",
-      "relative_customer_value": [1, 2, 3, 1, 3, 4]
+      "customer_profile": "QRadar",
+      "relative_customer_value": [3, 3, 2, 3, 2, 2]
     }
   ],
   "rationale": {
-    "Splunk ES (SIEM)": {
+    "Splunk ES": {
       "Assess Alert Severity": "Risk-based alerting assigns risk scores, but requires significant tuning...",
       "Gather Context": "SPL search is extremely powerful for ad-hoc context gathering..."
     }
@@ -325,40 +381,66 @@ This is the core data file. It matches the existing `ValueCurveData` shape so th
 }
 ```
 
-**Note on competitor labels**: Competitor names include the category in parentheses (e.g., "Splunk ES (SIEM)") so users can see cross-category competition directly on the chart. This is a simple convention that works with the existing chart code.
+### How the Data Merges at Runtime
+
+When the user selects:
+- **Domain**: Security Operations
+- **Persona**: SOC Analyst → loads `personas/soc-analyst.json` (features)
+- **Categories**: SIEM + XDR → loads competitors from both
+- **Competitors**: Splunk ES, Sentinel, CrowdStrike, XSIAM (subset of available)
+
+The backend merges into a standard `ValueCurveData` object:
+
+```json
+{
+  "industry": "Security Operations",
+  "user_persona": "SOC Analyst (Tier 1-2)",
+  "features": ["Assess Alert Severity", "Gather Context", ...],
+  "user_jobs": [{"name": "Assess Alert Severity", "description": "..."}, ...],
+  "curves": [
+    {"customer_profile": "Splunk ES (SIEM)", "relative_customer_value": [3, 4, 2, 3, 2, 3]},
+    {"customer_profile": "Sentinel (SIEM)", "relative_customer_value": [3, 3, 3, 4, 3, 3]},
+    {"customer_profile": "CrowdStrike (XDR)", "relative_customer_value": [4, 3, 4, 4, 3, 2]},
+    {"customer_profile": "XSIAM (XDR)", "relative_customer_value": [4, 4, 3, 4, 2, 2]}
+  ]
+}
+```
+
+This is the same shape the existing `ValueCurveChart` already consumes. **No chart code changes needed.**
 
 ---
 
 ## 5. User Analysis Data Model
 
-When a user adds "My Product," we create a **user analysis** that references the catalog data and overlays the user's scores.
+When a user adds "My Product," we create a **user analysis** that references their selections and overlays their scores.
 
 ### User Analysis Structure
 
 ```json
 {
   "id": "analysis-uuid",
-  "name": "My Alert Triage Analysis",
-  "job_id": "triage-security-alerts",
+  "name": "My SOC Triage Analysis",
+  "domain_id": "security-operations",
   "persona_id": "soc-analyst",
+  "selected_categories": ["siem", "xdr"],
+  "selected_competitors": ["splunk-es", "microsoft-sentinel", "crowdstrike-falcon"],
+  "custom_persona": null,
+  "custom_categories": [],
+  "custom_competitors": [],
   "my_product": {
     "name": "Our Platform",
-    "category_id": "xdr",
     "scores": [3, 4, 2, 5, 3, 4],
     "rationale": {
       "Assess Alert Severity": "Our ML-based scoring is best-in-class...",
       "Correlate Related Alerts": "Automatic attack chain visualization..."
     }
   },
-  "created_at": "2026-03-03T...",
-  "updated_at": "2026-03-03T..."
+  "created_at": "2026-03-10T...",
+  "updated_at": "2026-03-10T..."
 }
 ```
 
-At render time, the app merges catalog data + user analysis to produce a full `ValueCurveData` object:
-- `features` and `user_jobs` come from the catalog persona file
-- `curves` = catalog competitor curves + user's "Our Solution" curve
-- Highlight logic works as-is (detects "Our Solution" naming)
+At render time, the app merges catalog data + user selections + user scores into a `ValueCurveData` object, exactly as described above.
 
 ---
 
@@ -368,30 +450,31 @@ At render time, the app merges catalog data + user analysis to produce a full `V
 
 ```
 # Catalog endpoints (read-only)
-GET  /api/catalog/domains                     → List all domains
-GET  /api/catalog/jobs                        → List all jobs (optionally filter by domain)
-GET  /api/catalog/jobs/{job_id}               → Job details + persona list + competitor list
-GET  /api/catalog/jobs/{job_id}/personas/{persona_id}
-                                              → Full pre-filled value curve data
-GET  /api/catalog/categories                  → Reference list of product categories
+GET  /api/catalog/domains                             → List all CISSP domains
+GET  /api/catalog/domains/{domain_id}                 → Domain detail
+GET  /api/catalog/domains/{domain_id}/personas        → List personas for domain
+GET  /api/catalog/domains/{domain_id}/personas/{id}   → Persona detail + features
+GET  /api/catalog/domains/{domain_id}/categories      → List categories for domain
+GET  /api/catalog/domains/{domain_id}/categories/{id}/competitors
+                                                      → List competitors in a category
+GET  /api/catalog/domains/{domain_id}/scores/{persona_id}/{category_id}
+                                                      → Pre-filled scores for persona × category
+
+# Merged view (composes selections into ValueCurveData)
+POST /api/catalog/compose                             → Takes selections, returns merged ValueCurveData
+  Body: { domain_id, persona_id, category_ids[], competitor_ids[] }
 
 # User analysis endpoints
-GET  /api/analyses                            → List user's saved analyses
-POST /api/analyses                            → Create new analysis
-GET  /api/analyses/{id}                       → Get analysis (merged with catalog data)
-PUT  /api/analyses/{id}                       → Update user's product scores
-DELETE /api/analyses/{id}                     → Delete analysis
-
-# Merged view endpoint (convenience)
-GET  /api/analyses/{id}/view                  → Returns full ValueCurveData shape
-                                                 with catalog + user data merged
+GET    /api/analyses                                  → List user's saved analyses
+POST   /api/analyses                                  → Create new analysis
+GET    /api/analyses/{id}                             → Get analysis
+PUT    /api/analyses/{id}                             → Update analysis
+DELETE /api/analyses/{id}                             → Delete analysis
+GET    /api/analyses/{id}/view                        → Returns full ValueCurveData with user's product merged in
 ```
 
-### Catalog Loading
-The catalog data lives as static JSON files under `catalog/`. The Flask backend reads them on-demand. No write endpoints for catalog data - seed data is managed via JSON files directly.
-
 ### Existing Endpoints
-All existing `/api/projects` and `/api/data` endpoints remain unchanged. The consultant workflow (manual project creation) continues to work. The new catalog/analysis flow is additive.
+All existing `/api/projects` and `/api/data` endpoints remain unchanged. The consultant workflow continues to work.
 
 ---
 
@@ -401,42 +484,47 @@ All existing `/api/projects` and `/api/data` endpoints remain unchanged. The con
 
 | Route | Page | Description |
 |-------|------|-------------|
-| `/` | `LandingPage` | Job browser grouped by domain |
-| `/job/:jobId` | `JobPage` | Job details + persona selector cards |
-| `/job/:jobId/persona/:personaId` | `PersonaViewPage` | Pre-filled cross-category value curves + "Add My Product" CTA |
-| `/job/:jobId/persona/:personaId/score` | `ScoreMyProductPage` | Focused scoring interface for user's product |
-| `/analysis/:id` | `AnalysisViewPage` | Full comparison view (reuses VisualizationPage) |
+| `/` | `LandingPage` | CISSP domain selector grid |
+| `/domain/:domainId` | `DomainFlowPage` | Multi-step guided flow: Persona → Categories → Competitors |
+| `/domain/:domainId/view` | `CatalogViewPage` | Pre-filled value curves for selections |
+| `/domain/:domainId/score` | `ScoreMyProductPage` | Focused scoring interface |
+| `/analysis/:id` | `AnalysisViewPage` | Full comparison view with user's product |
+| `/analyses` | `AnalysesListPage` | Saved analyses list |
 
 ### Preserved Routes (consultant mode)
 | Route | Page | Status |
 |-------|------|--------|
 | `/admin` | `ProjectListPage` | Unchanged |
 | `/admin/:projectId` | `ProjectEditorPage` | Unchanged |
-| `/projects/:projectId` | `VisualizationPage` | Renamed from `/?project=` for clarity |
+| `/projects/:projectId` | `VisualizationPage` | Unchanged |
 
 ### New Components
 
-**`DomainSection`** - A collapsible section for a domain (e.g., "Security Operations") containing `JobCard` components. Used on LandingPage.
+**`DomainCard`** - Card for each CISSP domain. Shows domain name, number, description, icon, and counts of available data. Used on LandingPage.
 
-**`JobCard`** - Card displaying a job with name, description, related category badges (e.g., "SIEM", "XDR", "SOAR" as colored pills), and competitor/persona counts. Clicking navigates to the job page.
+**`GuidedFlowStepper`** - Step indicator showing progress through the Domain → Persona → Categories → Competitors flow. Allows going back to previous steps.
 
-**`PersonaCard`** - Card displaying a user persona with name, role description, context. Used on JobPage. Selecting a card navigates to the persona view.
+**`PersonaSelector`** - Grid of `PersonaCard` components for pre-built personas + a "Create Custom Persona" card. Selected state is visually distinct.
 
-**`CategoryBadge`** - Small colored pill/tag showing a product category name (e.g., "SIEM", "SOAR"). Used on job cards and potentially on the chart legend to show which category each competitor belongs to.
+**`PersonaCard`** - Card displaying persona name, description, context, and feature count.
 
-**`PersonaViewPage`** - Wraps the existing `ValueCurveChart` with catalog data. Adds a prominent "Add My Product" button. Shows persona details and job context in a header section.
+**`CategorySelector`** - Grid of `CategoryCard` components with multi-select support + "Create Custom Category" option. Shows competitor count per category.
 
-**`ProductScorer`** - Focused scoring interface (see Section 8 for design details).
+**`CategoryBadge`** - Small colored pill showing category abbreviation (e.g., "SIEM", "SOAR"). Used throughout the UI to label competitors.
 
-**`ComparisonBanner`** - Banner summarizing key insights on the comparison view.
+**`CompetitorSelector`** - List of competitors grouped by selected categories, with checkboxes. Includes "Add Custom Competitor" option per category. Shows competitor description on hover.
+
+**`ProductScorer`** - Focused scoring interface (see Section 8).
+
+**`ComparisonBanner`** - Insight summary banner on the comparison view.
 
 ### Modified Components
 
-**`Header`** - Add navigation breadcrumbs: Home > Job > Persona > My Analysis
+**`Header`** - Add navigation breadcrumbs showing the flow path.
 
-**`ValueCurveChart`** - No changes needed to the chart itself. Data shape is identical.
+**`ValueCurveChart`** - No changes needed. Same data shape.
 
-**`CompetitorSidebar`** - Minor: show category badge next to each competitor name so users can see which product category each competitor belongs to.
+**`CompetitorSidebar`** - Show `CategoryBadge` next to each competitor name.
 
 ---
 
@@ -447,11 +535,11 @@ All existing `/api/projects` and `/api/data` endpoints remain unchanged. The con
 Show all features as a compact vertical list. For each feature:
 - Feature name and description
 - Slider (0-5)
-- Small dot-plot or mini bar chart showing where each competitor scores on this feature (provides context without requiring the user to memorize numbers)
+- Small dot-plot or mini bar chart showing where selected competitors score on this feature (provides context)
 - Optional expandable rationale textarea
 - Progress indicator (e.g., "4 of 6 features scored")
 
-This approach is fast for power users while providing enough context for first-time users to make informed scoring decisions.
+Fast for power users, provides enough context for first-time users.
 
 ---
 
@@ -468,96 +556,100 @@ This approach is fast for power users while providing enough context for first-t
 
 ## 10. Initial Seed Data Scope
 
-Start with a narrow, high-quality set focused on Security Operations:
+### Phase 1: Security Operations Domain
 
-### Domain: Security Operations
+**Personas (3):**
+1. SOC Analyst (Tier 1-2)
+2. Detection Engineer
+3. CISO
 
-**Jobs:**
-1. **Triage Security Alerts** - Competitors from: SIEM, XDR, SOAR, Hyperautomation
-2. **Investigate Security Incidents** - Competitors from: SIEM, XDR, EDR, DFIR
-3. **Hunt for Threats** - Competitors from: SIEM, XDR, EDR, Threat Intel Platforms
+**Product Categories (4):**
+1. SIEM - Splunk ES, Microsoft Sentinel, Elastic Security, IBM QRadar
+2. XDR - CrowdStrike Falcon, Palo Alto XSIAM, Microsoft Defender XDR
+3. SOAR - Cortex XSOAR, Swimlane, Splunk SOAR
+4. Hyperautomation - Tines, Torq
 
-**Personas per Job (2-3 each):**
-- Triage: SOC Analyst (Tier 1-2), SOC Manager, Detection Engineer
-- Investigate: IR Analyst, IR Lead
-- Hunt: Threat Hunter, SOC Manager
+**Features per Persona: 5-8**
+Curated to be the most meaningful competitive differentiators.
 
-**Competitors (across categories):**
-- SIEM: Splunk ES, Microsoft Sentinel, Elastic Security, IBM QRadar
-- XDR: CrowdStrike Falcon, Palo Alto XSIAM, Microsoft Defender XDR
-- SOAR: Cortex XSOAR, Swimlane, Splunk SOAR
-- Hyperautomation: Tines, Torq
-- EDR: CrowdStrike, SentinelOne, Carbon Black
-
-**Features per Job+Persona: 5-8**
-Curated to be the most meaningful competitive differentiators for each combination.
+**Score Files Needed:**
+- 3 personas × 4 categories = up to 12 score files
+- Not all combinations are needed (e.g., CISO may not need hyperautomation scores)
+- Start with SOC Analyst × SIEM + XDR as the minimum viable dataset
 
 ### Scoring Approach
 Initial scores based on publicly available analyst reports, product documentation, and industry knowledge. Each score includes rationale text for transparency.
+
+### Future Domains
+- Identity and Access Management (IAM)
+- Software Development Security (DevSecOps)
+- Others based on user demand
 
 ---
 
 ## 11. Phased Implementation Plan
 
 ### Phase 1: Catalog Infrastructure (Backend + Seed Data)
-- [ ] Define TypeScript types for new catalog entities (Domain, Job, Persona, CatalogView)
-- [ ] Create `catalog/` directory structure
-- [ ] Create seed data for 1 job ("Triage Security Alerts") with 2 personas and ~6 competitors
+- [ ] Define TypeScript types for catalog entities (Domain, Persona, Category, Competitor, ScoreSet)
+- [ ] Create `catalog/` directory structure for Security Operations domain
+- [ ] Create seed data: 1 domain, 2 personas, 2 categories, ~6 competitors, 2-4 score files
 - [ ] Implement catalog API endpoints on Flask backend
+- [ ] Implement `/api/catalog/compose` endpoint that merges selections into ValueCurveData
 - [ ] Write basic validation for catalog data format
 
-### Phase 2: Job & Persona Selection UI
-- [ ] Build `LandingPage` with domain sections and job cards
-- [ ] Build `JobPage` with persona cards and job details
-- [ ] Build `CategoryBadge` component
+### Phase 2: Domain Landing & Guided Flow UI
+- [ ] Build `LandingPage` with domain cards
+- [ ] Build `GuidedFlowStepper` component
+- [ ] Build `PersonaSelector` with pre-built personas + create-custom option
+- [ ] Build `CategorySelector` with multi-select + create-custom option
+- [ ] Build `CompetitorSelector` with per-category grouping + create-custom option
 - [ ] Update routing in `main.tsx`
 - [ ] Update `Header` with breadcrumb navigation
 
 ### Phase 3: Pre-filled Value Curve View
-- [ ] Build `PersonaViewPage` that loads catalog persona data and renders existing `ValueCurveChart`
+- [ ] Build `CatalogViewPage` that loads composed data and renders existing `ValueCurveChart`
 - [ ] Add "Add My Product" CTA button
-- [ ] Show persona/job context in header
-- [ ] Add category badges to competitor sidebar
+- [ ] Add `CategoryBadge` to competitor sidebar
+- [ ] Show persona/domain context in header area
 
 ### Phase 4: Product Scoring & Comparison
 - [ ] Build `ProductScorer` component (streamlined list with sliders + competitor context)
 - [ ] Implement user analysis API endpoints (CRUD under `/api/analyses`)
-- [ ] Implement merge logic: catalog data + user scores → full `ValueCurveData`
+- [ ] Implement merge logic: catalog data + user selections + user scores → full ValueCurveData
 - [ ] Build `AnalysisViewPage` showing full comparison chart
 - [ ] Add `ComparisonBanner` with insight summary
 
 ### Phase 5: Polish & Expand
-- [ ] Add remaining seed data jobs (Investigate, Hunt)
+- [ ] Add remaining personas and score files for Security Operations
 - [ ] Anonymous user sessions (UUID-based)
-- [ ] Saved analyses list page
+- [ ] `AnalysesListPage` for saved analyses
 - [ ] Responsive design pass for new pages
 - [ ] Loading states, error handling, empty states
+- [ ] Expand seed data to a second domain
 
 ### Future Phases (out of scope for v1)
 - Authentication (OAuth/email)
 - User-submitted competitor data or score overrides
 - Export/share analysis (PDF, link sharing)
 - Admin interface for managing catalog data
-- Additional domains beyond Security Operations
+- All 8 CISSP domains populated
 - API for programmatic access
 
 ---
 
 ## 12. Open Questions for Discussion
 
-1. **Job granularity**: How specific should jobs be? "Triage Security Alerts" is fairly specific. Should we also have broader jobs like "Run a Security Operations Center" that encompass multiple sub-jobs? Or keep jobs atomic and let users pick multiple?
+1. **Score range**: Standardize on 0-5 for the catalog? The current app uses this range.
 
-2. **Competitor overlap across jobs**: Many competitors (e.g., Splunk ES) appear across multiple jobs. Should competitor metadata (name, description, category) be defined once and referenced, or duplicated per job? (The plan currently duplicates per job for simplicity, but a shared competitor registry might be cleaner.)
+2. **Catalog editability**: Should users ever be able to "override" a catalog competitor's score if they disagree? Or is the catalog purely read-only with the user only scoring their own product?
 
-3. **Feature overlap across personas within a job**: For the same job, different personas may share some features but not all. Should we allow partial overlap, or require completely distinct feature sets per persona?
+3. **Product naming**: The current app detects "Our Solution" by name. Should the user-facing version let users name their product freely, with a separate flag marking it as the user's product?
 
-4. **Score range**: Standardize on 0-5 for the catalog? The current app uses this range.
+4. **Category labeling on chart**: Should competitor names on the chart include the category (e.g., "Splunk ES (SIEM)")? This makes cross-category comparison visible but makes labels longer.
 
-5. **Catalog editability**: Should users ever be able to "override" a catalog competitor's score if they disagree? Or is the catalog purely read-only with the user only scoring their own product?
+5. **Custom entry validation**: When users create custom personas, categories, or competitors, what's the minimum required data? Just a name, or do we require descriptions too?
 
-6. **Product naming**: The current app detects "Our Solution" by name. Should the user-facing version let users name their product freely, with a separate flag marking it as the user's product?
-
-7. **Category as filter**: On the value curve view, should users be able to filter competitors by category? E.g., "Show me only SIEM competitors" vs "Show all." This would be a natural extension of the existing competitor sidebar.
+6. **Persona × Category coverage**: Not every persona needs scores for every category. How do we handle it when a user selects a persona+category combination that has no pre-filled scores? Options: (a) show empty chart with just their product, (b) disable that combination, (c) show a message encouraging them to use the admin flow for full manual entry.
 
 ---
 
@@ -565,10 +657,12 @@ Initial scores based on publicly available analyst reports, product documentatio
 
 - **Catalog data quality**: The product's value hinges on accurate, well-reasoned competitive scores. Bad seed data undermines trust. Domain experts should review initial catalog data.
 
-- **Catalog staleness**: Product capabilities change. Need a process (even if manual) for updating catalog scores over time. Consider adding a `last_reviewed` date to catalog data.
+- **Catalog staleness**: Product capabilities change. Need a process (even if manual) for updating catalog scores over time. Consider adding a `last_reviewed` date to score files.
 
-- **Cross-category comparison validity**: Comparing products from different categories on the same features is conceptually valid (they all compete for the same job) but may require careful feature definition. A SOAR platform and a SIEM do fundamentally different things, so features should be framed as outcomes ("Reduce time to assess severity") rather than capabilities ("Run SPL queries").
+- **Composability complexity**: The multi-selection model (multiple categories, multiple competitors) means the compose endpoint needs to merge data cleanly. Edge cases: what if a competitor appears in multiple categories? What if features differ slightly between score files?
 
-- **Data model compatibility**: The persona-view JSON matches the current `ValueCurveData` shape, which means the existing chart, sidebar, and highlight logic work without modification. This is deliberate.
+- **Data model compatibility**: The final composed output matches the current `ValueCurveData` shape, so the existing chart, sidebar, and highlight logic work without modification. This is a deliberate, risk-reducing design choice.
 
 - **No database yet**: File-based storage is fine for the catalog (read-only) and a small number of user analyses. API layer abstracts storage for future migration.
+
+- **Custom entries**: Users creating custom personas/categories/competitors need somewhere to store that data. This could be embedded in the analysis JSON or stored separately. Keeping it in the analysis keeps things simple.
