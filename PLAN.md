@@ -410,37 +410,87 @@ This is the same shape the existing `ValueCurveChart` already consumes. **No cha
 
 ---
 
-## 5. User Analysis Data Model
+## 5. Project Data Model
 
-When a user adds "My Product," we create a **user analysis** that references their selections and overlays their scores.
+A **project** is the unit of saved work. It captures everything a user selected during the guided flow, plus any custom entries and their own product scores. Projects are named, saved, and returnable — a consultant can build an analysis on Monday and come back to it on Friday.
 
-### User Analysis Structure
+### How Projects Relate to the Guided Flow
+
+The guided flow (Domain → Persona → Categories → Competitors) is the **creation** path. At any point after reaching the value curve view, the user can **save** their work as a named project. The project stores:
+- All selections made during the flow (which catalog entries were chosen)
+- Any custom entries created (custom persona, categories, competitors)
+- The user's own product scores (if they've added "My Product")
+- The fully resolved `ValueCurveData` snapshot (so the project is self-contained)
+
+When a user returns to a saved project, they land directly on the value curve view with everything restored — no need to re-walk the flow.
+
+### Project Structure
 
 ```json
 {
-  "id": "analysis-uuid",
-  "name": "My SOC Triage Analysis",
-  "domain_id": "security-operations",
-  "persona_id": "soc-analyst",
-  "selected_categories": ["siem", "xdr"],
-  "selected_competitors": ["splunk-es", "microsoft-sentinel", "crowdstrike-falcon"],
-  "custom_persona": null,
-  "custom_categories": [],
-  "custom_competitors": [],
+  "id": "project-uuid",
+  "name": "Acme SOC Platform Analysis",
+  "description": "Competitive analysis for Acme's alert triage product",
+  "created_at": "2026-03-10T...",
+  "updated_at": "2026-03-10T...",
+
+  "selections": {
+    "domain_id": "security-operations",
+    "persona_id": "soc-analyst",
+    "category_ids": ["siem", "xdr"],
+    "competitor_ids": ["splunk-es", "microsoft-sentinel", "crowdstrike-falcon", "palo-alto-xsiam"]
+  },
+
+  "custom_entries": {
+    "persona": null,
+    "categories": [],
+    "competitors": [
+      {
+        "id": "custom-acme-siem",
+        "name": "Acme Legacy SIEM",
+        "short_name": "Acme SIEM",
+        "category_id": "siem",
+        "description": "Client's existing in-house SIEM",
+        "scores": [1, 2, 1, 1, 2, 2]
+      }
+    ]
+  },
+
   "my_product": {
-    "name": "Our Platform",
+    "name": "Acme NextGen Platform",
     "scores": [3, 4, 2, 5, 3, 4],
     "rationale": {
       "Assess Alert Severity": "Our ML-based scoring is best-in-class...",
       "Correlate Related Alerts": "Automatic attack chain visualization..."
     }
   },
-  "created_at": "2026-03-10T...",
-  "updated_at": "2026-03-10T..."
+
+  "snapshot": {
+    "industry": "Security Operations",
+    "user_persona": "SOC Analyst (Tier 1-2)",
+    "features": ["Assess Alert Severity", "Gather Context", "..."],
+    "user_jobs": [{"name": "Assess Alert Severity", "description": "..."}],
+    "curves": [
+      {"customer_profile": "Splunk ES (SIEM)", "relative_customer_value": [3, 4, 2, 3, 2, 3]},
+      {"customer_profile": "Acme NextGen Platform", "relative_customer_value": [3, 4, 2, 5, 3, 4]}
+    ]
+  }
 }
 ```
 
-At render time, the app merges catalog data + user selections + user scores into a `ValueCurveData` object, exactly as described above.
+### Why Store a Snapshot?
+
+The `snapshot` field contains the fully resolved `ValueCurveData` at save time. This means:
+- **Instant load**: Opening a saved project doesn't require re-composing from catalog pieces
+- **Stability**: If catalog scores are updated later, the user's saved analysis doesn't silently change
+- **Offline-friendly**: The project file is self-contained
+- **Backward compatible**: The snapshot is the same shape the existing chart consumes
+
+The `selections` and `custom_entries` fields are kept alongside the snapshot so the user can **re-compose** if they want to pick up catalog updates, add/remove competitors, or modify their flow choices.
+
+### Storage
+
+Projects are stored as JSON files under `projects/{project-id}/data.json` — the same pattern the app already uses. The existing project CRUD infrastructure (`GET/POST/PUT/DELETE /api/projects`) is extended to support the new structure. Old-format projects (manually created via admin) continue to work as-is.
 
 ---
 
@@ -460,21 +510,36 @@ GET  /api/catalog/domains/{domain_id}/categories/{id}/competitors
 GET  /api/catalog/domains/{domain_id}/scores/{persona_id}/{category_id}
                                                       → Pre-filled scores for persona × category
 
-# Merged view (composes selections into ValueCurveData)
+# Compose (preview before saving — returns ValueCurveData without persisting)
 POST /api/catalog/compose                             → Takes selections, returns merged ValueCurveData
   Body: { domain_id, persona_id, category_ids[], competitor_ids[] }
-
-# User analysis endpoints
-GET    /api/analyses                                  → List user's saved analyses
-POST   /api/analyses                                  → Create new analysis
-GET    /api/analyses/{id}                             → Get analysis
-PUT    /api/analyses/{id}                             → Update analysis
-DELETE /api/analyses/{id}                             → Delete analysis
-GET    /api/analyses/{id}/view                        → Returns full ValueCurveData with user's product merged in
 ```
 
-### Existing Endpoints
-All existing `/api/projects` and `/api/data` endpoints remain unchanged. The consultant workflow continues to work.
+### Extended Project Endpoints
+
+The existing `/api/projects` endpoints are extended to support the new project structure. Projects created via the guided flow and projects created via the admin editor coexist — they're both projects, just with different shapes.
+
+```
+# Existing (unchanged)
+GET    /api/projects                                  → List all projects
+POST   /api/projects                                  → Create project
+GET    /api/projects/{id}/data                        → Get project data
+PUT    /api/projects/{id}/data                        → Update project data
+DELETE /api/projects/{id}                             → Delete project
+
+# New: save from guided flow (creates a project with selections + snapshot)
+POST   /api/projects/from-flow                        → Create project from guided flow selections
+  Body: { name, description, selections, custom_entries, my_product? }
+  → Composes ValueCurveData, saves as snapshot, returns project
+
+# New: re-compose (update snapshot from current catalog data)
+POST   /api/projects/{id}/recompose                   → Re-merge from catalog using stored selections
+  → Updates the snapshot field with latest catalog scores
+```
+
+### Why Unify Under `/api/projects`
+
+A project is a project whether it was built through the guided flow or the admin editor. The consultant sees one list of their work, not two parallel systems. The `selections` field being present (or null) is what distinguishes a catalog-backed project from a manually-created one.
 
 ---
 
@@ -484,19 +549,25 @@ All existing `/api/projects` and `/api/data` endpoints remain unchanged. The con
 
 | Route | Page | Description |
 |-------|------|-------------|
-| `/` | `LandingPage` | CISSP domain selector grid |
+| `/` | `LandingPage` | CISSP domain selector grid + saved projects list |
 | `/domain/:domainId` | `DomainFlowPage` | Multi-step guided flow: Persona → Categories → Competitors |
-| `/domain/:domainId/view` | `CatalogViewPage` | Pre-filled value curves for selections |
+| `/domain/:domainId/view` | `CatalogViewPage` | Pre-filled value curves for selections (pre-save preview) |
 | `/domain/:domainId/score` | `ScoreMyProductPage` | Focused scoring interface |
-| `/analysis/:id` | `AnalysisViewPage` | Full comparison view with user's product |
-| `/analyses` | `AnalysesListPage` | Saved analyses list |
+| `/projects/:projectId` | `ProjectViewPage` | Saved project view (loads snapshot, renders chart) |
 
-### Preserved Routes (consultant mode)
+### Preserved Routes (admin/consultant mode)
 | Route | Page | Status |
 |-------|------|--------|
-| `/admin` | `ProjectListPage` | Unchanged |
+| `/admin` | `ProjectListPage` | Unchanged (manual project creation) |
 | `/admin/:projectId` | `ProjectEditorPage` | Unchanged |
-| `/projects/:projectId` | `VisualizationPage` | Unchanged |
+
+### Landing Page: Two Entry Points
+
+The landing page serves both new and returning users:
+- **"Start New Analysis"** section: CISSP domain cards → begins the guided flow
+- **"My Projects"** section: List of saved projects → click to open directly in chart view
+
+This means a consultant's workflow is: guided flow → save as project → return to project list → reopen anytime.
 
 ### New Components
 
@@ -612,17 +683,22 @@ Initial scores based on publicly available analyst reports, product documentatio
 - [ ] Add `CategoryBadge` to competitor sidebar
 - [ ] Show persona/domain context in header area
 
-### Phase 4: Product Scoring & Comparison
+### Phase 4: Project Save & Return
+- [ ] Implement `POST /api/projects/from-flow` endpoint (compose + snapshot + save)
+- [ ] Add "Save as Project" action from `CatalogViewPage` (name, optional description)
+- [ ] Build `ProjectViewPage` that loads saved project snapshot and renders chart
+- [ ] Add "My Projects" section to `LandingPage` listing saved projects
+- [ ] Implement `POST /api/projects/{id}/recompose` for refreshing from catalog
+
+### Phase 5: Product Scoring & Comparison
 - [ ] Build `ProductScorer` component (streamlined list with sliders + competitor context)
-- [ ] Implement user analysis API endpoints (CRUD under `/api/analyses`)
-- [ ] Implement merge logic: catalog data + user selections + user scores → full ValueCurveData
-- [ ] Build `AnalysisViewPage` showing full comparison chart
+- [ ] Update project save to include `my_product` scores
+- [ ] Build comparison view: user's product overlaid on competitors
 - [ ] Add `ComparisonBanner` with insight summary
 
-### Phase 5: Polish & Expand
+### Phase 6: Polish & Expand
 - [ ] Add remaining personas and score files for Security Operations
 - [ ] Anonymous user sessions (UUID-based)
-- [ ] `AnalysesListPage` for saved analyses
 - [ ] Responsive design pass for new pages
 - [ ] Loading states, error handling, empty states
 - [ ] Expand seed data to a second domain
@@ -634,6 +710,7 @@ Initial scores based on publicly available analyst reports, product documentatio
 - Admin interface for managing catalog data
 - All 8 CISSP domains populated
 - API for programmatic access
+- SQLite/Postgres migration when project volume warrants it
 
 ---
 
@@ -663,6 +740,8 @@ Initial scores based on publicly available analyst reports, product documentatio
 
 - **Data model compatibility**: The final composed output matches the current `ValueCurveData` shape, so the existing chart, sidebar, and highlight logic work without modification. This is a deliberate, risk-reducing design choice.
 
-- **No database yet**: File-based storage is fine for the catalog (read-only) and a small number of user analyses. API layer abstracts storage for future migration.
+- **File-based storage is sufficient for v1**: Catalog data is read-only JSON. Projects are stored as `projects/{id}/data.json`, same as today. The API layer abstracts storage so a future migration to SQLite or Postgres is straightforward. The inflection point for a database is when you need cross-project queries (e.g., "which competitors appear most across all projects") or when project volume exceeds what directory scanning handles well (hundreds+).
 
-- **Custom entries**: Users creating custom personas/categories/competitors need somewhere to store that data. This could be embedded in the analysis JSON or stored separately. Keeping it in the analysis keeps things simple.
+- **Custom entries live inside the project**: Custom personas, categories, and competitors are embedded in the project JSON (`custom_entries` field). This keeps them self-contained and avoids needing a shared registry. If reuse across projects becomes important later, that's a natural trigger for a database migration.
+
+- **Snapshot + selections duality**: Projects store both the resolved `snapshot` (for instant load) and the `selections` (for re-composition). This creates a minor data duplication, but the benefits — instant project load, stability against catalog changes, and the ability to explicitly opt-in to catalog updates — outweigh the cost.
