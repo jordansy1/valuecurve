@@ -658,57 +658,283 @@ Initial scores based on publicly available analyst reports, product documentatio
 
 ---
 
-## 11. Phased Implementation Plan
+## 11. Implementation Checklist
 
-### Phase 1: Catalog Infrastructure (Backend + Seed Data)
-- [ ] Define TypeScript types for catalog entities (Domain, Persona, Category, Competitor, ScoreSet)
-- [ ] Create `catalog/` directory structure for Security Operations domain
-- [ ] Create seed data: 1 domain, 2 personas, 2 categories, ~6 competitors, 2-4 score files
-- [ ] Implement catalog API endpoints on Flask backend
-- [ ] Implement `/api/catalog/compose` endpoint that merges selections into ValueCurveData
-- [ ] Write basic validation for catalog data format
+Each step is a concrete, completable unit of work. Check off as you go.
 
-### Phase 2: Domain Landing & Guided Flow UI
-- [ ] Build `LandingPage` with domain cards
-- [ ] Build `GuidedFlowStepper` component
-- [ ] Build `PersonaSelector` with pre-built personas + create-custom option
-- [ ] Build `CategorySelector` with multi-select + create-custom option
-- [ ] Build `CompetitorSelector` with per-category grouping + create-custom option
-- [ ] Update routing in `main.tsx`
-- [ ] Update `Header` with breadcrumb navigation
+---
 
-### Phase 3: Pre-filled Value Curve View
-- [ ] Build `CatalogViewPage` that loads composed data and renders existing `ValueCurveChart`
-- [ ] Add "Add My Product" CTA button
-- [ ] Add `CategoryBadge` to competitor sidebar
-- [ ] Show persona/domain context in header area
+### Phase 1: TypeScript Types & Catalog Data Structure
 
-### Phase 4: Project Save & Return
-- [ ] Implement `POST /api/projects/from-flow` endpoint (compose + snapshot + save)
-- [ ] Add "Save as Project" action from `CatalogViewPage` (name, optional description)
-- [ ] Build `ProjectViewPage` that loads saved project snapshot and renders chart
-- [ ] Add "My Projects" section to `LandingPage` listing saved projects
-- [ ] Implement `POST /api/projects/{id}/recompose` for refreshing from catalog
+**1.1 Define catalog types** (`frontend/src/types/catalog.ts`)
+- [ ] `CatalogDomain` type (id, name, description, cissp_domain_number, icon, persona_count, category_count)
+- [ ] `CatalogPersonaSummary` type (id, name, description, context, feature_count) — for index listings
+- [ ] `CatalogPersona` type (extends summary with features: {name, description}[]) — full persona detail
+- [ ] `CatalogCategorySummary` type (id, name, full_name, description, competitor_count) — for index listings
+- [ ] `CatalogCompetitor` type (id, name, short_name, description)
+- [ ] `CatalogScoreSet` type (persona_id, category_id, curves: ValueCurve[], rationale)
+- [ ] `FlowSelections` type (domain_id, persona_id, category_ids[], competitor_ids[])
 
-### Phase 5: Product Scoring & Comparison
-- [ ] Build `ProductScorer` component (streamlined list with sliders + competitor context)
-- [ ] Update project save to include `my_product` scores
-- [ ] Build comparison view: user's product overlaid on competitors
-- [ ] Add `ComparisonBanner` with insight summary
+**1.2 Define project types** (`frontend/src/types/index.ts` — extend existing)
+- [ ] `ProjectData` type — extends existing `ValueCurveDataExtended` with selections, custom_entries, my_product, snapshot fields
+- [ ] `CustomEntries` type (persona, categories[], competitors[])
+- [ ] `MyProduct` type (name, scores[], rationale)
+- [ ] Ensure backward compatibility — old projects without `selections` field still load
 
-### Phase 6: Polish & Expand
-- [ ] Add remaining personas and score files for Security Operations
-- [ ] Anonymous user sessions (UUID-based)
-- [ ] Responsive design pass for new pages
-- [ ] Loading states, error handling, empty states
-- [ ] Expand seed data to a second domain
+**1.3 Create catalog directory structure**
+- [ ] Create `catalog/` root directory
+- [ ] Create `catalog/domains.json` with all 8 CISSP domains
+- [ ] Create `catalog/security-operations/domain.json`
+- [ ] Create `catalog/security-operations/personas/_index.json`
+- [ ] Create `catalog/security-operations/categories/_index.json`
+
+**1.4 Seed data: Security Operations — SOC Analyst persona**
+- [ ] Create `catalog/security-operations/personas/soc-analyst.json` (persona + 6 features)
+- [ ] Create `catalog/security-operations/categories/siem/category.json`
+- [ ] Create `catalog/security-operations/categories/siem/competitors.json` (Splunk ES, Sentinel, Elastic, QRadar)
+- [ ] Create `catalog/security-operations/categories/xdr/category.json`
+- [ ] Create `catalog/security-operations/categories/xdr/competitors.json` (CrowdStrike, XSIAM, Defender XDR)
+- [ ] Create `catalog/security-operations/scores/soc-analyst/siem.json` (scores + rationale)
+- [ ] Create `catalog/security-operations/scores/soc-analyst/xdr.json` (scores + rationale)
+
+**1.5 Seed data: Security Operations — Detection Engineer persona**
+- [ ] Create `catalog/security-operations/personas/detection-engineer.json` (persona + 6 features)
+- [ ] Create `catalog/security-operations/scores/detection-engineer/siem.json`
+- [ ] Create `catalog/security-operations/scores/detection-engineer/xdr.json`
+
+**Milestone: Catalog data files exist and are valid JSON. Types compile.**
+
+---
+
+### Phase 2: Catalog API (Flask Backend)
+
+**2.1 Catalog read endpoints**
+- [ ] `GET /api/catalog/domains` — reads `catalog/domains.json`, returns domain list
+- [ ] `GET /api/catalog/domains/{domain_id}` — reads `catalog/{domain_id}/domain.json`
+- [ ] `GET /api/catalog/domains/{domain_id}/personas` — reads `personas/_index.json`
+- [ ] `GET /api/catalog/domains/{domain_id}/personas/{id}` — reads `personas/{id}.json`
+- [ ] `GET /api/catalog/domains/{domain_id}/categories` — reads `categories/_index.json`
+- [ ] `GET /api/catalog/domains/{domain_id}/categories/{id}/competitors` — reads `categories/{id}/competitors.json`
+- [ ] `GET /api/catalog/domains/{domain_id}/scores/{persona_id}/{category_id}` — reads score file
+
+**2.2 Compose endpoint**
+- [ ] `POST /api/catalog/compose` — accepts `{domain_id, persona_id, category_ids[], competitor_ids[]}`
+- [ ] Load persona features from `personas/{persona_id}.json`
+- [ ] Load scores from each `scores/{persona_id}/{category_id}.json`
+- [ ] Filter curves to only the selected competitor_ids
+- [ ] Append category name to competitor labels (e.g., "Splunk ES (SIEM)")
+- [ ] Return merged `ValueCurveData` object matching existing chart shape
+- [ ] Handle missing score files gracefully (skip category, don't error)
+
+**2.3 Validation & error handling**
+- [ ] Return 404 for unknown domain/persona/category IDs
+- [ ] Validate compose request body (required fields, non-empty arrays)
+- [ ] Test compose endpoint with SOC Analyst + SIEM + XDR selection
+
+**Milestone: All catalog endpoints return correct data. Compose returns valid ValueCurveData.**
+
+---
+
+### Phase 3: Landing Page & Domain Selection
+
+**3.1 Landing page**
+- [ ] Create `LandingPage.tsx` component
+- [ ] Fetch domains from `GET /api/catalog/domains`
+- [ ] Render domain cards in a responsive grid
+- [ ] Create `DomainCard.tsx` — shows name, CISSP domain number, description, icon, persona/category counts
+- [ ] Click on domain card navigates to `/domain/:domainId`
+
+**3.2 "My Projects" section on landing page**
+- [ ] Fetch saved projects from `GET /api/projects`
+- [ ] Render project list below domain grid (or in a tab)
+- [ ] Each project shows name, description, domain, persona, last updated
+- [ ] Click on project navigates to `/projects/:projectId`
+
+**3.3 Routing updates**
+- [ ] Add `/` route → `LandingPage`
+- [ ] Add `/domain/:domainId` route → `DomainFlowPage` (placeholder for now)
+- [ ] Add `/projects/:projectId` route → `ProjectViewPage` (placeholder for now)
+- [ ] Keep existing `/admin` and `/admin/:projectId` routes unchanged
+- [ ] Update `App.tsx` layout/outlet as needed
+
+**Milestone: Landing page renders domain cards from catalog API. Project list shows saved projects.**
+
+---
+
+### Phase 4: Guided Flow — Persona Selection
+
+**4.1 Flow page shell**
+- [ ] Create `DomainFlowPage.tsx` with step state management (current step, selections so far)
+- [ ] Create `GuidedFlowStepper.tsx` — visual step indicator (Domain ✓ → Persona → Categories → Competitors)
+- [ ] Wire step navigation: next, back, step clicking
+
+**4.2 Persona step**
+- [ ] Create `PersonaSelector.tsx` — grid of persona cards for the selected domain
+- [ ] Create `PersonaCard.tsx` — name, description, context, feature count, selected state
+- [ ] Fetch personas from `GET /api/catalog/domains/{domainId}/personas`
+- [ ] Single-select: clicking a card selects it, deselects others
+- [ ] Add "Create Custom Persona" card at end of grid
+- [ ] Create `CustomPersonaForm.tsx` — inline form with name, description, context, features list
+- [ ] Store selection in flow state: `persona_id` or `custom_persona` object
+- [ ] "Next" button enabled when a persona is selected or custom form is valid
+
+**Milestone: User can select a domain, see personas, pick one (or create custom), and advance.**
+
+---
+
+### Phase 5: Guided Flow — Category & Competitor Selection
+
+**5.1 Category step**
+- [ ] Create `CategorySelector.tsx` — grid of category cards with multi-select
+- [ ] Create `CategoryCard.tsx` — name, full name, description, competitor count, selected/unselected state
+- [ ] Fetch categories from `GET /api/catalog/domains/{domainId}/categories`
+- [ ] Multi-select: clicking toggles selection, visual badge shows count selected
+- [ ] Add "Create Custom Category" card
+- [ ] Create `CustomCategoryForm.tsx` — name, full name, description
+- [ ] Store selections in flow state: `category_ids[]` and `custom_categories[]`
+- [ ] "Next" button enabled when at least one category is selected
+
+**5.2 Competitor step**
+- [ ] Create `CompetitorSelector.tsx` — competitors grouped by selected category
+- [ ] Fetch competitors per category from `GET /api/catalog/domains/{domainId}/categories/{id}/competitors`
+- [ ] Render category sections with competitor checkboxes (all checked by default)
+- [ ] Create `CategoryBadge.tsx` — colored pill component for category labels
+- [ ] Allow unchecking individual competitors
+- [ ] Add "Add Custom Competitor" button per category section
+- [ ] Create `CustomCompetitorForm.tsx` — name, short name, description
+- [ ] Store selections in flow state: `competitor_ids[]` and `custom_competitors[]`
+- [ ] "View Analysis" button enabled when at least one competitor is selected
+
+**Milestone: Full guided flow works end-to-end: Domain → Persona → Categories → Competitors.**
+
+---
+
+### Phase 6: Pre-filled Value Curve View
+
+**6.1 Catalog view page**
+- [ ] Create `CatalogViewPage.tsx`
+- [ ] On mount, call `POST /api/catalog/compose` with flow selections
+- [ ] Pass returned `ValueCurveData` to existing `ValueCurveChart` component
+- [ ] Show domain name and persona info in a context header above the chart
+- [ ] Show `CategoryBadge` next to each competitor name in `CompetitorSidebar`
+- [ ] All existing chart interactions work (hover, highlight modes, toggle competitors)
+
+**6.2 Handle custom entries in the view**
+- [ ] If custom persona was created, use its features (pass custom features to compose or handle client-side)
+- [ ] If custom competitors were created, add them to the curves array (with placeholder scores of 0)
+- [ ] Custom competitors render on the chart with a distinct visual indicator (e.g., dashed line)
+
+**6.3 "Add My Product" CTA**
+- [ ] Add prominent button below or beside the chart: "Add My Product"
+- [ ] Clicking navigates to scoring page (or opens a modal/drawer)
+
+**Milestone: User sees a real value curve chart populated from catalog data after completing the flow.**
+
+---
+
+### Phase 7: Project Save & Return
+
+**7.1 Save from flow**
+- [ ] Add "Save as Project" button on `CatalogViewPage`
+- [ ] Create `SaveProjectDialog.tsx` — modal with project name (required) and description (optional)
+- [ ] Implement `POST /api/projects/from-flow` on backend:
+  - Accept: name, description, selections, custom_entries
+  - Call compose logic to generate ValueCurveData
+  - Save as `projects/{id}/data.json` with full project structure (selections + snapshot)
+  - Return project ID
+- [ ] After save, redirect to `/projects/:projectId`
+
+**7.2 Project view page**
+- [ ] Create `ProjectViewPage.tsx`
+- [ ] Load project from `GET /api/projects/{id}/data`
+- [ ] If project has `snapshot`, render it directly with `ValueCurveChart`
+- [ ] If project is old-format (no snapshot), render using existing `ValueCurveData` fields
+- [ ] Show project name, description, domain, persona in header
+- [ ] Add "Edit Selections" button → navigates back to flow with selections pre-filled
+- [ ] Add "Delete Project" with confirmation
+
+**7.3 Recompose**
+- [ ] Implement `POST /api/projects/{id}/recompose` on backend:
+  - Load project's stored selections
+  - Re-run compose logic against current catalog data
+  - Update the snapshot field
+  - Save and return updated project
+- [ ] Add "Refresh from Catalog" button on `ProjectViewPage` (with confirmation: "This will update competitor scores to latest catalog data")
+
+**7.4 Project list on landing page**
+- [ ] Wire up "My Projects" section to show projects with the new structure
+- [ ] Show project type indicator (catalog-backed vs. manually created)
+- [ ] Sort by last updated
+
+**Milestone: User can save an analysis as a named project, return to it from the landing page, and optionally refresh scores from catalog.**
+
+---
+
+### Phase 8: Product Scoring & Comparison
+
+**8.1 Scoring interface**
+- [ ] Create `ProductScorer.tsx` component
+- [ ] Display each feature as a row: feature name, description, slider (0-5)
+- [ ] Show competitor scores as small dots/markers alongside each slider for context
+- [ ] Add optional expandable rationale textarea per feature
+- [ ] Add progress indicator ("4 of 6 features scored")
+- [ ] "Save Scores" button
+
+**8.2 Wire scoring into project**
+- [ ] Create `ScoreMyProductPage.tsx` (or modal/drawer from project view)
+- [ ] Prompt user for product name before scoring
+- [ ] Save `my_product` (name, scores, rationale) into project data via `PUT /api/projects/{id}/data`
+- [ ] Update project snapshot to include "My Product" curve
+
+**8.3 Comparison view**
+- [ ] On `ProjectViewPage`, if `my_product` exists, render it as the highlighted curve (green solid line)
+- [ ] Existing `OUR_SOLUTION_STYLE` logic applies — ensure "My Product" name triggers highlight
+- [ ] Add `ComparisonBanner.tsx` — summary of where user's product leads/trails vs. competitors
+- [ ] Banner shows: number of features where user leads, trails, and ties
+
+**Milestone: User can score their own product and see it overlaid on the competitor value curves.**
+
+---
+
+### Phase 9: Breadcrumbs & Navigation Polish
+
+- [ ] Update `Header.tsx` with breadcrumb navigation: Home > Domain > Flow Step / Project Name
+- [ ] Breadcrumbs are context-aware (different for flow vs. saved project)
+- [ ] Add "Back to Home" / "Back to Project" navigation from all sub-pages
+- [ ] Ensure browser back button works correctly through the flow
+
+---
+
+### Phase 10: Additional Seed Data
+
+- [ ] Create CISO persona + features for Security Operations
+- [ ] Create SOAR category with competitors (Cortex XSOAR, Swimlane, Splunk SOAR)
+- [ ] Create Hyperautomation category with competitors (Tines, Torq)
+- [ ] Create score files: SOC Analyst × SOAR, SOC Analyst × Hyperautomation
+- [ ] Create score files: Detection Engineer × SOAR
+- [ ] Create score files: CISO × SIEM, CISO × XDR
+- [ ] Review and refine all score rationale text
+
+---
+
+### Phase 11: Edge Cases, Loading States & Error Handling
+
+- [ ] Loading spinners/skeletons for all API calls (domain list, persona list, compose, project load)
+- [ ] Error states: failed API calls show retry option, not blank pages
+- [ ] Empty states: no projects yet, no competitors selected, etc.
+- [ ] Handle persona×category combinations with no pre-filled scores (show message, allow proceeding with custom data only)
+- [ ] Responsive design pass: flow and chart pages work on tablet widths
+
+---
 
 ### Future Phases (out of scope for v1)
+
 - Authentication (OAuth/email)
+- Anonymous UUID sessions
 - User-submitted competitor data or score overrides
 - Export/share analysis (PDF, link sharing)
 - Admin interface for managing catalog data
-- All 8 CISSP domains populated
+- All 8 CISSP domains populated with seed data
 - API for programmatic access
 - SQLite/Postgres migration when project volume warrants it
 
