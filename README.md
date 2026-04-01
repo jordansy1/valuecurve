@@ -1,5 +1,7 @@
 # Value Curve Visualization App v2.0
 
+> **This project has been archived.** The Value Curve / Strategy Canvas functionality has been migrated to [evy-portal](https://github.com/jordansy1/evy-portal), the unified EverettYoung consulting tools platform. This repository is preserved as read-only for reference.
+
 A modern React + Flask web application for creating interactive Strategy Canvas visualizations based on the Blue Ocean Strategy framework. Built for EverettYoung LLC consultants to deliver professional value curve analyses to clients.
 
 ## Features
